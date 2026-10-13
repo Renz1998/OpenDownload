@@ -39,5 +39,11 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../browser-extension/ba
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../browser-extension/manifest.json')));
   assert.equal(manifest.manifest_version, 3); assert.ok(!manifest.host_permissions); assert.ok(!manifest.permissions.includes('cookies'));
   console.log('PASS MV3 manifest has no broad website or cookie permissions');
-  console.log('7 extension tests passed.');
+  const crypto = require('node:crypto');
+  const actualId = [...crypto.createHash('sha256').update(Buffer.from(manifest.key,'base64')).digest().subarray(0,16)].map(byte => String.fromCharCode(97+(byte>>4),97+(byte&15))).join('');
+  const identity = JSON.parse(fs.readFileSync(path.join(__dirname,'../browser-extension/identity.json')));
+  const appPaths = fs.readFileSync(path.join(__dirname,'../src/OpenDownload.Core/AppPaths.cs'),'utf8');
+  assert.equal(actualId,identity.extensionId); assert.ok(appPaths.includes('ExtensionId = "'+actualId+'"'));
+  console.log('PASS stable extension key matches app and installer origin');
+  console.log('8 extension tests passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

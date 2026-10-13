@@ -12,3 +12,5 @@ test-results/
 native-host.json
 local-settings.json
 data-path.txt
+docs/images/ui-results.txt
+docs/images/ui-failure.txt

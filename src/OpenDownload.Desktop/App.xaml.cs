@@ -13,17 +13,19 @@ public sealed class BrowserRequest
     public string? FileName { get; set; }
     public string? Referer { get; set; }
     public Dictionary<string, string>? Headers { get; set; }
+    public string? ExtensionId { get; set; }
 }
 public partial class App : Application
 {
     private Mutex? instance;
     private readonly CancellationTokenSource shutdown = new();
     public static string DataDirectory { get; private set; } = "";
-    public static string PipeName => "OpenDownload-" + Environment.UserName;
+    public static string PipeName => AppPaths.Pipe(DataDirectory);
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        instance = new Mutex(true, "Local\\OpenDownload-" + Environment.UserName, out bool first);
+        DataDirectory = AppPaths.DataFolder(AppContext.BaseDirectory);
+        instance = new Mutex(true, "Local\\" + PipeName, out bool first);
         if (!first)
         {
             try
@@ -38,9 +40,6 @@ public partial class App : Application
             catch { /* Already-running instance may be busy; never start a second writer. */ }
             Shutdown(); return;
         }
-        string configPath = Path.Combine(AppContext.BaseDirectory, "data-path.txt");
-        DataDirectory = Environment.GetEnvironmentVariable("OPENDOWNLOAD_DATA") ??
-            (File.Exists(configPath) ? File.ReadAllText(configPath).Trim() : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenDownload"));
         Directory.CreateDirectory(DataDirectory);
         DispatcherUnhandledException += (_, error) =>
         {
@@ -50,6 +49,8 @@ public partial class App : Application
         {
             var main = new MainWindow(); MainWindow = main; main.Show();
             _ = ListenAsync(main, shutdown.Token);
+            if (e.Args.Length >= 2 && e.Args[0] == "--ui-self-test" && Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE") == "1")
+                main.ContentRendered += async (_, _) => await main.RunUiTestsAsync(e.Args[1]);
         }
         catch (Exception)
         {
@@ -72,8 +73,9 @@ public partial class App : Application
                 bool accepted = false;
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    if (req.Action == "ping") accepted = true;
+                    if (req.Action == "ping") { if (req.ExtensionId == AppPaths.ExtensionId) window.RecordBrowserCheck(); accepted = true; }
                     else if (req.Action == "show") { window.ShowFromRequest(); accepted = true; }
+                    else if (req.Action == "exit-for-update") { accepted = true; _ = window.ExitForUpdateAsync(); }
                     else
                     {
                         try { DownloadNames.ValidateUrl(req.Url); window.ReceiveBrowserRequest(req); accepted = true; }

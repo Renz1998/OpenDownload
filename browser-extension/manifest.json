@@ -1,9 +1,21 @@
 {
   "manifest_version": 3,
   "name": "OpenDownload Integration",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Send links and optional browser downloads to the free OpenDownload desktop app.",
-  "permissions": ["nativeMessaging", "contextMenus", "storage", "downloads", "activeTab"],
-  "background": {"service_worker": "background.js"},
-  "action": {"default_popup": "popup.html", "default_title": "OpenDownload"}
+  "permissions": [
+    "nativeMessaging",
+    "contextMenus",
+    "storage",
+    "downloads",
+    "activeTab"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "OpenDownload"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2gFud6f/Ho5o20XCyi7p0fWSaVIXgu2soEvYjGAKOyZzkYwaJvnZmWEeXX4kks51XmIoTtuCe8k+wDYtmO9gW5uyzdD+n2qr2QR7FaMnEKiY5rpz/67JNjTHF3f2aGL/5cgfMv1l/Zr8TXJz9H/lrpMM5sKE9+XV1HRswdBavYQp+bnbYfOvIfuXFZi272LW5INeTOt1zlXGmJhqcKollFKM+PEEQP/bEvaiWX1FgwaRYNhGMn9VeywDEGCfHuwWggfqI9s4CUIBMfwz8Wbt0c701RQ1YvYXxayFQbteTdM2Yy3TcKNie9eCHy75Qfuqh5XljhkYSri+929084dwDQIDAQAB"
 }

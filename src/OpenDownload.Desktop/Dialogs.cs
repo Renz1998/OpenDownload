@@ -21,6 +21,7 @@ internal static class DialogUi
     }
     public static StackPanel Setup(Window window, string title, double width)
     {
+        window.Style = (Style)Application.Current.FindResource(typeof(Window));
         window.Title = title; window.Width = width; window.SizeToContent = SizeToContent.Height; window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
         window.ResizeMode = ResizeMode.NoResize; window.MaxHeight = SystemParameters.WorkArea.Height - 40;
         var panel = new StackPanel { Margin = new Thickness(24) };
@@ -84,6 +85,8 @@ public sealed class OptionsDialog : Window
         DialogUi.Label(panel, "Connections per file (1–8)"); var connections = DialogUi.Input(panel, current.Connections.ToString());
         DialogUi.Label(panel, "Concurrent downloads (1–8)"); var concurrent = DialogUi.Input(panel, current.ConcurrentDownloads.ToString());
         DialogUi.Label(panel, "Global speed limit in KiB/s (0 = unlimited)"); var speed = DialogUi.Input(panel, current.SpeedLimitKiB.ToString());
+        DialogUi.Label(panel, "Gaming mode shared cap in KiB/s"); var gaming = DialogUi.Input(panel, current.GamingLimitKiB.ToString());
+        var compact = DialogUi.Check(panel, "Compact Workbench rows", current.CompactRows);
         var schedule = DialogUi.Check(panel, "Run queued downloads only during a daily time window", current.ScheduleEnabled);
         DialogUi.Label(panel, "Start time (24-hour HH:mm, local time)"); var start = DialogUi.Input(panel, TimeSpan.FromMinutes(current.ScheduleStartMinute).ToString(@"hh\:mm"));
         DialogUi.Label(panel, "Stop time (24-hour HH:mm; same as start = all day)"); var stop = DialogUi.Input(panel, TimeSpan.FromMinutes(current.ScheduleEndMinute).ToString(@"hh\:mm"));
@@ -93,12 +96,13 @@ public sealed class OptionsDialog : Window
         {
             try
             {
-                if (!int.TryParse(connections.Text, out int c) || c is < 1 or > 8 || !int.TryParse(concurrent.Text, out int n) || n is < 1 or > 8 || !int.TryParse(speed.Text, out int s) || s is < 0 or > 1048576) throw new ArgumentException("Check connection counts (1–8) and speed limit (0–1048576 KiB/s).");
+                if (!int.TryParse(connections.Text, out int c) || c is < 1 or > 8 || !int.TryParse(concurrent.Text, out int n) || n is < 1 or > 8 || !int.TryParse(speed.Text, out int s) || s is < 0 or > 1048576 || !int.TryParse(gaming.Text, out int g) || g is < 1 or > 1048576) throw new ArgumentException("Check connection counts (1–8), speed limit (0–1048576 KiB/s) and gaming cap (1–1048576 KiB/s).");
                 if (!TimeSpan.TryParseExact(start.Text, @"hh\:mm", null, out var begin) || !TimeSpan.TryParseExact(stop.Text, @"hh\:mm", null, out var end) || begin.TotalHours >= 24 || end.TotalHours >= 24) throw new ArgumentException("Enter times as HH:mm, from 00:00 to 23:59.");
                 if (!Path.IsPathFullyQualified(directory.Text)) throw new ArgumentException("Choose an absolute download folder.");
                 Directory.CreateDirectory(directory.Text);
                 Result = new Settings { DownloadDirectory = Path.GetFullPath(directory.Text), Connections = c, ConcurrentDownloads = n, SpeedLimitKiB = s, ScheduleEnabled = schedule.IsChecked == true,
-                    ScheduleStartMinute = (int)begin.TotalMinutes, ScheduleEndMinute = (int)end.TotalMinutes, MinimizeToTray = tray.IsChecked == true };
+                    ScheduleStartMinute = (int)begin.TotalMinutes, ScheduleEndMinute = (int)end.TotalMinutes, MinimizeToTray = tray.IsChecked == true,
+                    Layout = current.Layout, LightTheme = current.LightTheme, CompactRows = compact.IsChecked == true, GamingLimitKiB = g, BrowserCheckedAt = current.BrowserCheckedAt };
                 DialogResult = true;
             }
             catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException) { MessageBox.Show(this, ex.Message, "Check options"); }

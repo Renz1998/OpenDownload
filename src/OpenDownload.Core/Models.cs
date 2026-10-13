@@ -13,6 +13,7 @@ public sealed class Segment
 public sealed class DownloadJob
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public bool Hidden { get; set; }
     public string Url { get; set; } = "";
     public string FileName { get; set; } = "";
     public string Destination { get; set; } = "";
@@ -43,6 +44,12 @@ public sealed class DownloadJob
 }
 public sealed class Settings
 {
+    public string? Layout { get; set; }
+    public bool LightTheme { get; set; }
+    public bool CompactRows { get; set; }
+    public int GamingLimitKiB { get; set; } = 5120;
+    public int? PreviousSpeedLimitKiB { get; set; }
+    public DateTimeOffset? BrowserCheckedAt { get; set; }
     public string DownloadDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "OpenDownload");
     public int Connections { get; set; } = 4;
     public int ConcurrentDownloads { get; set; } = 2;

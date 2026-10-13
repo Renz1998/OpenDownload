@@ -14,6 +14,9 @@ namespace OpenDownload.Desktop;
 public partial class MainWindow : Window
 {
     private readonly ObservableCollection<DownloadRow> rows = [];
+    private readonly List<DownloadJob> allJobs = [];
+    private readonly List<DownloadRow> removed = [];
+    private readonly Dictionary<string, DownloadStatus> previousStates = [];
     private readonly Dictionary<string, (CancellationTokenSource Cts, Task Task)> running = [];
     private readonly Dictionary<string, long> lastBytes = [];
     private readonly DownloadEngine engine = new();
@@ -28,9 +31,12 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         store = new Store(App.DataDirectory); settings = store.LoadSettings();
-        foreach (var job in store.Load()) rows.Add(new DownloadRow(job));
+        Theme.Apply(settings.LightTheme);
+        allJobs.AddRange(store.Load());
+        foreach (var job in allJobs.Where(j => !j.Hidden)) rows.Add(new DownloadRow(job));
         engine.Limiter.LimitKiB = () => settings.SpeedLimitKiB;
         Downloads.ItemsSource = rows;
+        FocusDownloads.ItemsSource = rows;
         CollectionViewSource.GetDefaultView(rows).Filter = MatchesFilter;
         tray = new System.Windows.Forms.NotifyIcon { Text = "OpenDownload", Icon = System.Drawing.SystemIcons.Application, Visible = true };
         var menu = new System.Windows.Forms.ContextMenuStrip();
@@ -41,14 +47,19 @@ public partial class MainWindow : Window
         tray.ContextMenuStrip = menu; tray.DoubleClick += (_, _) => Dispatcher.Invoke(ShowWindow);
         timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) }; timer.Tick += (_, _) => Tick(); timer.Start();
         PreviewKeyDown += (_, e) => { if (e.Key == Key.N && Keyboard.Modifiers == ModifierKeys.Control) { AddClick(this, new RoutedEventArgs()); e.Handled = true; } };
-        UpdateSettingsLabels(); Tick();
+        UpdateSettingsLabels(); ApplyLayout(); Tick();
+        ContentRendered += (_, _) =>
+        {
+            if (Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE") == "1") return;
+            if (settings.Layout is not ("Workbench" or "Focus")) ChooseLayout();
+        };
     }
     private void ShowWindow() { Show(); WindowState = WindowState.Normal; Activate(); }
     public void ShowFromRequest() => ShowWindow();
     private bool MatchesFilter(object value)
     {
         var row = (DownloadRow)value;
-        bool match = category switch { "All downloads" => true, "Unfinished" => row.Job.Status != DownloadStatus.Completed, "Completed" => row.Job.Status == DownloadStatus.Completed, _ => row.Category == category };
+        bool match = category switch { "All downloads" => true, "Downloading" => row.Job.Status is DownloadStatus.Downloading or DownloadStatus.Connecting or DownloadStatus.Queued, "Paused" => row.Job.Status == DownloadStatus.Paused, "Needs attention" => row.Job.Status == DownloadStatus.Failed, "Completed" => row.Job.Status == DownloadStatus.Completed, _ => row.Category == category };
         return match && row.FileName.Contains(SearchBox?.Text ?? "", StringComparison.OrdinalIgnoreCase);
     }
     private void Tick()
@@ -70,13 +81,17 @@ public partial class MainWindow : Window
             foreach (var row in rows.Where(r => r.Job.Status == DownloadStatus.Queued && !running.ContainsKey(r.Job.Id)).ToArray())
             { if (running.Count >= settings.ConcurrentDownloads) break; Start(row); }
         }
-        Save(); CollectionViewSource.GetDefaultView(rows).Refresh(); UpdateSelection();
+        bool filterChanged = rows.Any(r => !previousStates.TryGetValue(r.Job.Id, out var previous) || previous != r.Job.Status);
+        foreach (var row in rows) previousStates[row.Job.Id] = row.Job.Status;
+        if (running.Count > 0) Save();
+        if (filterChanged) CollectionViewSource.GetDefaultView(rows).Refresh();
+        UpdateSelection(); UpdateEmptyState();
         Summary.Text = $"{rows.Count} downloads · {running.Count} active · {DownloadRow.FormatBytes((long)rows.Sum(r => r.Job.BytesPerSecond))}/s";
         ScheduleStatus.Text = settings.ScheduleEnabled ? settings.AllowedNow(DateTime.Now) ? "Schedule: active" : "Schedule: waiting" : "Schedule: off";
     }
     private bool Save()
     {
-        try { store.Save(rows.Select(r => r.Job), settings); return true; }
+        try { store.Save(allJobs, settings); return true; }
         catch (Exception) { PauseAll(); Summary.Text = "Could not save download state. Downloads paused; check disk space and permissions."; return false; }
     }
     private void Start(DownloadRow row)
@@ -96,7 +111,8 @@ public partial class MainWindow : Window
         { tray.BalloonTipTitle = "Download complete"; tray.BalloonTipText = row.FileName; tray.ShowBalloonTip(3000); }
         Save(); row.Refresh();
     }
-    private IEnumerable<DownloadRow> Selected() => Downloads.SelectedItems.Cast<DownloadRow>().ToArray();
+    private IEnumerable<DownloadRow> Selected() => settings.Layout == "Focus" ? FocusDownloads.SelectedItems.Cast<DownloadRow>().ToArray() : Downloads.SelectedItems.Cast<DownloadRow>().ToArray();
+    private DownloadRow? CurrentRow => settings.Layout == "Focus" ? FocusDownloads.SelectedItem as DownloadRow : Downloads.SelectedItem as DownloadRow;
     private void AddClick(object sender, RoutedEventArgs e)
     {
         var dialog = new AddDialog(settings) { Owner = this };
@@ -114,12 +130,12 @@ public partial class MainWindow : Window
         if (req.Headers != null)
             foreach (var h in req.Headers.Where(h => h.Key is "Authorization" or "Cookie" or "User-Agent"))
                 if (h.Value.Length <= 32768 && !h.Value.Contains('\r') && !h.Value.Contains('\n')) job.Headers[h.Key] = h.Value;
-        rows.Add(new DownloadRow(job));
+        allJobs.Add(job); rows.Add(new DownloadRow(job));
     }
     public void ReceiveBrowserRequest(BrowserRequest req)
     {
         AddJob(req, settings.DownloadDirectory);
-        if (!Save()) { rows.RemoveAt(rows.Count - 1); throw new IOException("Cannot persist download request."); }
+        if (!Save()) { allJobs.Remove(rows[^1].Job); rows.RemoveAt(rows.Count - 1); throw new IOException("Cannot persist download request."); }
         ShowWindow(); Tick();
     }
     private void ResumeClick(object sender, RoutedEventArgs e)
@@ -153,26 +169,32 @@ public partial class MainWindow : Window
     {
         var selected = Selected().ToArray(); if (selected.Length == 0) return;
         if (selected.Any(r => running.ContainsKey(r.Job.Id))) { MessageBox.Show(this, "Pause these downloads and wait for them to stop before removing them."); return; }
-        if (MessageBox.Show(this, "Remove these entries and their unfinished partial files? Completed files are kept.", "Remove downloads", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+        removed.Clear();
         foreach (var row in selected)
         {
-            try { if (File.Exists(row.Job.PartialPath)) File.Delete(row.Job.PartialPath); store.Remove(row.Job.Id); rows.Remove(row); lastBytes.Remove(row.Job.Id); }
-            catch (IOException ex) { MessageBox.Show(this, ex.Message); }
+            row.Job.Hidden = true; removed.Add(row); rows.Remove(row); lastBytes.Remove(row.Job.Id);
         }
-        Save();
+        Save(); ShowNotice("Removed from the list. Downloaded and partial files are kept.", true); UpdateEmptyState();
     }
     private void ClearClick(object sender, RoutedEventArgs e)
-    { foreach (var row in rows.Where(r => r.Job.Status == DownloadStatus.Completed).ToArray()) { store.Remove(row.Job.Id); rows.Remove(row); lastBytes.Remove(row.Job.Id); } Save(); }
+    { removed.Clear(); foreach (var row in rows.Where(r => r.Job.Status == DownloadStatus.Completed).ToArray()) { row.Job.Hidden = true; removed.Add(row); rows.Remove(row); lastBytes.Remove(row.Job.Id); } Save(); ShowNotice("Completed entries removed from the list. Files are kept.", true); UpdateEmptyState(); }
     private void OptionsClick(object sender, RoutedEventArgs e)
     {
         var dialog = new OptionsDialog(settings) { Owner = this };
-        if (dialog.ShowDialog() == true) { settings = dialog.Result; UpdateSettingsLabels(); Tick(); }
+        if (dialog.ShowDialog() == true) { settings = dialog.Result; UpdateSettingsLabels(); ApplyLayout(); Save(); Tick(); }
     }
     private void UpdateSettingsLabels()
-    { LocationLabel.Text = settings.DownloadDirectory; LimitStatus.Text = settings.SpeedLimitKiB > 0 ? $"Limit: {settings.SpeedLimitKiB:N0} KiB/s" : "Speed limit: off"; }
+    {
+        LocationLabel.Content = "Downloads folder"; LocationLabel.ToolTip = settings.DownloadDirectory;
+        LimitStatus.Text = settings.SpeedLimitKiB > 0 ? $"Shared limit: {settings.SpeedLimitKiB:N0} KiB/s" : "Bandwidth: unlimited";
+        GamingButton.Content = settings.PreviousSpeedLimitKiB.HasValue ? "Gaming mode: on" : "Gaming mode";
+        GamingButton.Background = (System.Windows.Media.Brush)FindResource(settings.PreviousSpeedLimitKiB.HasValue ? "Selected" : "Surface");
+        BrowserStatus.Content = settings.BrowserCheckedAt.HasValue ? "Browser checked" : "Connect browser";
+        BrowserStatus.ToolTip = settings.BrowserCheckedAt.HasValue ? "Last successful browser check: " + settings.BrowserCheckedAt.Value.LocalDateTime.ToString("g") : "Set up Chrome or Edge";
+    }
     private void BrowserClick(object sender, RoutedEventArgs e)
     {
-        new BrowserSetupDialog { Owner = this }.ShowDialog();
+        new BrowserSetupDialog(() => settings.BrowserCheckedAt) { Owner = this }.ShowDialog(); UpdateSettingsLabels();
     }
     private void CategoryChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -184,26 +206,32 @@ public partial class MainWindow : Window
     private void SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateSelection();
     private void UpdateSelection()
     {
-        if (Downloads.SelectedItem is DownloadRow row)
-        { SelectionTitle.Text = row.FileName + " · " + row.Status; SelectionDetail.Text = row.Detail; SelectionHash.Text = row.Job.Sha256 == null ? "" : "SHA-256: " + row.Job.Sha256; }
-        else { SelectionTitle.Text = "Select a download to see its details"; SelectionDetail.Text = ""; SelectionHash.Text = ""; }
+        if (CurrentRow is DownloadRow row)
+        {
+            SelectionTitle.Text = row.FileName + " · " + row.Status; SelectionDetail.Text = row.Detail;
+            SelectionProgress.Text = row.Received + " of " + row.Size + " · " + row.Remaining;
+            SelectionResume.Text = row.Job.TotalBytes == null ? "Resume support is checked when the transfer starts." : row.Job.SupportsRanges ? $"Resume supported · {row.Job.Segments.Count} connection(s)" : "This server does not support validated resume. An interrupted transfer may need Restart.";
+            SelectionHash.Text = row.Job.Sha256 == null ? "" : "Calculated SHA-256: " + row.Job.Sha256 + "\nCompare with the publisher’s checksum to verify authenticity.";
+        }
+        else { SelectionTitle.Text = "Select a download to see its details"; SelectionDetail.Text = ""; SelectionHash.Text = ""; SelectionProgress.Text = ""; SelectionResume.Text = ""; }
+        int count = Selected().Count(); BulkActions.Visibility = count > 1 ? Visibility.Visible : Visibility.Collapsed; SelectionCount.Text = $"{count} selected";
     }
     private void FolderClick(object sender, RoutedEventArgs e)
     {
-        if (Downloads.SelectedItem is not DownloadRow row) return;
+        if (CurrentRow is not DownloadRow row) return;
         string folder = Path.GetDirectoryName(row.Job.Destination)!;
         if (Directory.Exists(folder)) Process.Start(new ProcessStartInfo("explorer.exe", folder) { UseShellExecute = true });
     }
     private void ReplaceClick(object sender, RoutedEventArgs e)
     {
-        if (Downloads.SelectedItem is not DownloadRow row || row.Job.Status == DownloadStatus.Completed) return;
+        if (CurrentRow is not DownloadRow row || row.Job.Status == DownloadStatus.Completed) return;
         if (running.ContainsKey(row.Job.Id)) { MessageBox.Show(this, "Pause this download first."); return; }
         var dialog = new AddDialog(settings, true) { Owner = this };
         if (dialog.ShowDialog() != true) return;
         row.Job.Url = dialog.Requests[0].Url; row.Job.Headers.Clear(); row.Job.Headers = dialog.Requests[0].Headers ?? []; row.Job.Referer = null; row.Job.Error = null;
         row.Job.Status = DownloadStatus.Paused; Save(); row.Refresh();
     }
-    private void DetailsClick(object sender, RoutedEventArgs e) { if (Downloads.SelectedItem is DownloadRow row) new ProgressDialog(row) { Owner = this }.Show(); }
+    private void DetailsClick(object sender, RoutedEventArgs e) { if (CurrentRow is DownloadRow row) new ProgressDialog(row) { Owner = this }.Show(); }
     private void DownloadDoubleClick(object sender, MouseButtonEventArgs e) => DetailsClick(sender, new RoutedEventArgs());
     private async void WindowClosing(object? sender, CancelEventArgs e)
     {

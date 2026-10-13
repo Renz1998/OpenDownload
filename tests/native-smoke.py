@@ -21,7 +21,7 @@ db.execute("CREATE TABLE jobs (id TEXT PRIMARY KEY, payload BLOB NOT NULL)")
 db.execute("CREATE TABLE settings (id INTEGER PRIMARY KEY, payload TEXT NOT NULL)")
 db.execute("INSERT INTO settings VALUES (1,?)", (json.dumps({"DownloadDirectory": str(download), "Connections": 4, "ConcurrentDownloads": 2, "MinimizeToTray": False}),))
 db.commit(); db.close()
-env = dict(os.environ, OPENDOWNLOAD_DATA=str(data))
+env = dict(os.environ, OPENDOWNLOAD_DATA=str(data.resolve()), OPENDOWNLOAD_TEST_MODE="1")
 fixture = subprocess.Popen([args.node, str(pathlib.Path(args.root)/"tests"/"fixture.cjs")], stdout=subprocess.PIPE, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
 desktop = subprocess.Popen([str(app / "OpenDownload.Desktop.exe")], env=env)
 try:
@@ -38,6 +38,10 @@ try:
         if reply.get("ok"): break
     assert reply.get("ok"), reply
     print("PASS native length framing and desktop pipe ping")
+    assert request({"action": "ping", "extensionId": "oagdmhfnjjcidibdhafcbjmfmaeaojam"}).get("ok")
+    state=sqlite3.connect(data/'downloads.db'); preferences=json.loads(state.execute('SELECT payload FROM settings WHERE id=1').fetchone()[0]); state.close()
+    assert preferences.get('BrowserCheckedAt')
+    print("PASS extension handshake records an actual check timestamp")
     assert request({"action": "download", "url": f"http://127.0.0.1:{port}/range", "fileName": "native-smoke.bin"}).get("ok")
     target = download / "native-smoke.bin"
     for attempt in range(100):

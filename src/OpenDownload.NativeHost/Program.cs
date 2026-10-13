@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
+using OpenDownload.Core;
 
 // stdout is exclusively the browser's length-prefixed messaging channel.
 var input = Console.OpenStandardInput(); var output = Console.OpenStandardOutput();
@@ -26,7 +27,7 @@ try
                 if (url?.Length > 16384 || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || uri.UserInfo.Length != 0) throw new IOException("Invalid URL");
             }
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(25));
-            await using var pipe = new NamedPipeClientStream(".", "OpenDownload-" + Environment.UserName, PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+            await using var pipe = new NamedPipeClientStream(".", AppPaths.Pipe(AppPaths.DataFolder(AppContext.BaseDirectory)), PipeDirection.InOut, PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
             try { await pipe.ConnectAsync(500, timeout.Token); }
             catch (TimeoutException)
             {

@@ -6,6 +6,7 @@ function validUrl(value) {
   catch { return false; }
 }
 async function send(request) {
+  request.extensionId = chrome.runtime.id;
   if (request.action !== 'ping' && !validUrl(request.url)) throw new Error('Enter an HTTP or HTTPS download URL.');
   const reply = await chrome.runtime.sendNativeMessage(HOST, request);
   if (!reply?.ok) throw new Error(reply?.error || 'OpenDownload could not accept this download.');

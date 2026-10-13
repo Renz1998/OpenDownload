@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Push-Location $root
 try {
+    $version = ([xml](Get-Content Directory.Build.props -Raw)).Project.PropertyGroup.Version
     & $DotNet build src/OpenDownload.Desktop/OpenDownload.Desktop.csproj -c Release --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Desktop build failed' }
     & $DotNet build src/OpenDownload.NativeHost/OpenDownload.NativeHost.csproj -c Release --nologo
@@ -29,6 +30,15 @@ try {
         Copy-Item README.md,LICENSE -Destination $out -Force
         Copy-Item THIRD-PARTY.md -Destination $out -Force
         Copy-Item docs -Destination $out -Recurse -Force
+        $env:OPENDOWNLOAD_TEST_MODE = '1'
+        $env:OPENDOWNLOAD_DATA = Join-Path $root ('test-results/ui-' + [guid]::NewGuid().ToString('N'))
+        $uiProcess = Start-Process -FilePath (Join-Path $out 'OpenDownload.Desktop.exe') -ArgumentList '--ui-self-test',("`"" + (Join-Path $root 'docs/images') + "`"") -WindowStyle Hidden -PassThru
+        if (!$uiProcess.WaitForExit(60000)) { throw 'UI test timed out' }
+        if ($uiProcess.ExitCode -ne 0 -or (Test-Path docs/images/ui-failure.txt)) { throw 'UI tests failed; see docs/images/ui-failure.txt' }
+        Get-Content docs/images/ui-results.txt
+        Remove-Item Env:OPENDOWNLOAD_TEST_MODE
+        Remove-Item Env:OPENDOWNLOAD_DATA
+        Copy-Item docs -Destination $out -Recurse -Force
         $licenses = Join-Path $out 'licenses'
         New-Item -ItemType Directory -Path $licenses -Force | Out-Null
         Copy-Item -Path 'licenses/*' -Destination $licenses -Force
@@ -41,8 +51,13 @@ try {
                 }
             }
         }
-        $zip = Join-Path $root 'artifacts/OpenDownload-0.1.0-win-x64.zip'
+        $zip = Join-Path $root ("artifacts/OpenDownload-$version-win-x64.zip")
         Compress-Archive -Path "$out/*" -DestinationPath $zip -Force
-        (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant() + '  OpenDownload-0.1.0-win-x64.zip' | Set-Content (Join-Path $root 'artifacts/SHA256SUMS.txt')
+        & $DotNet publish src/OpenDownload.Setup -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/setup
+        if ($LASTEXITCODE -ne 0) { throw 'Installer publish failed' }
+        $setup = Join-Path $root ("artifacts/OpenDownload-$version-Setup.exe")
+        Copy-Item artifacts/setup/OpenDownload.Setup.exe $setup -Force
+        @($zip, $setup) | ForEach-Object { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + (Split-Path $_ -Leaf) } | Set-Content (Join-Path $root 'artifacts/SHA256SUMS.txt')
+        $version | Set-Content artifacts/version.txt
     }
 } finally { Pop-Location }

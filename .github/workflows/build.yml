@@ -24,12 +24,17 @@ jobs:
       - name: Published native host integration
         shell: pwsh
         run: python tests/native-smoke.py --app artifacts/OpenDownload --data test-results/native-ci --root .
+      - name: Installer safety and lifecycle tests
+        shell: pwsh
+        run: python tests/installer-smoke.py --setup artifacts/OpenDownload-0.2.0-Setup.exe --root .
       - uses: actions/upload-artifact@v4
         with:
           name: OpenDownload-win-x64
           path: |
             artifacts/*.zip
+            artifacts/*-Setup.exe
             artifacts/SHA256SUMS.txt
+            artifacts/version.txt
   release:
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     needs: build
@@ -45,11 +50,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v0.1.0' }}
+          REQUESTED_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
           SOURCE_SHA: ${{ github.sha }}
         run: |
+          RELEASE_TAG="${REQUESTED_TAG:-v$(tr -d '\r\n' < artifacts/version.txt)}"
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             echo "Release exists; preserving its published assets."
           else
-            gh release create "$RELEASE_TAG" artifacts/* --target "$SOURCE_SHA" --title "OpenDownload $RELEASE_TAG" --notes "Initial Windows preview. Download and extract the ZIP, then run OpenDownload.Desktop.exe. Browser setup instructions are included in README.md. Source commit: $SOURCE_SHA" --prerelease
+            gh release create "$RELEASE_TAG" artifacts/*.zip artifacts/*-Setup.exe artifacts/SHA256SUMS.txt --target "$SOURCE_SHA" --title "OpenDownload $RELEASE_TAG" --notes "Windows preview with Workbench and Focus, a first-launch layout chooser, Gaming mode, illustrated browser setup and a per-user EXE installer. Download the Setup.exe for easy installation or the ZIP for portable use. Source commit: $SOURCE_SHA" --prerelease
           fi

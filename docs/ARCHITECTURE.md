@@ -18,4 +18,8 @@ The pipe is restricted to the Windows user, not a sandbox against other maliciou
 
 ## Future work
 
+Version 0.2 adds a shared collection for Workbench and Focus, persisted layout/theme/density settings, contextual actions, recoverable hidden entries, and a gaming bandwidth preset using the existing aggregate limiter. A stable public extension key enables registration without manual ID copying. A browser ping carrying that extension ID records a successful-check timestamp; this is a last-check signal, not continuous monitoring of the browser.
+
+`OpenDownload.Setup` is a self-contained WPF installer with the portable package embedded. It uses per-user registration and shortcuts, stages updates in a sibling directory, probes for locked files, preserves unknown files, and retains the prior installation as a backup. The uninstaller uses a recorded file list constrained to the embedded package's allowlist and keeps data/history. Installer test mode is confined to the caller project's `test-results` directory and does not change real shortcuts or registry keys.
+
 Multiple named queues, store-signed extension distribution, HLS/DASH assembly, website adapters, an optional video panel, explicit credential refresh and application update signing need separate implementations and tests. Unchanged IDM-extension compatibility remains unproven and is outside the initial release.

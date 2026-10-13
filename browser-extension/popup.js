@@ -16,3 +16,4 @@ el('hosts').addEventListener('change', () => chrome.storage.local.set({captureHo
 chrome.storage.local.get(['capture', 'captureHosts', 'lastError']).then(data => {
   el('capture').checked = !!data.capture; el('hosts').value = data.captureHosts || ''; el('status').textContent = data.lastError || '';
 });
+if (new URLSearchParams(location.search).get('setup') === '1') request({action: 'ping'});
