@@ -1,0 +1,66 @@
+<Window x:Class="OpenDownload.Desktop.MainWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="OpenDownload" Width="1240" Height="760" MinWidth="960" MinHeight="560" Closing="WindowClosing">
+ <DockPanel>
+  <Border DockPanel.Dock="Top" Background="#123E39" Padding="22,16">
+   <Grid><StackPanel><TextBlock Text="OpenDownload" FontSize="24" FontWeight="SemiBold" Foreground="White"/><TextBlock Text="Your downloads. Your pace." Foreground="#B8DCD7" Margin="0,3,0,0"/></StackPanel>
+   <TextBlock Text="FREE · OPEN SOURCE" Foreground="#B8DCD7" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="11"/></Grid>
+  </Border>
+  <Border DockPanel.Dock="Top" Background="White" BorderBrush="#DFE5EC" BorderThickness="0,0,0,1" Padding="12,8">
+   <WrapPanel>
+    <Button Content="＋ Add URL" Click="AddClick" ToolTip="Add one URL or a batch (Ctrl+N)" Background="#E4F2EE" BorderBrush="#90BFB4"/>
+    <Button Content="▶ Resume" Click="ResumeClick"/>
+    <Button Content="Ⅱ Pause" Click="PauseClick"/>
+    <Button Content="■ Pause all" Click="PauseAllClick"/>
+    <Button Content="↻ Restart" Click="RestartClick"/>
+    <Button Content="Remove" Click="RemoveClick"/>
+    <Button Content="Clear completed" Click="ClearClick"/>
+    <Button Content="Options / Scheduler" Click="OptionsClick"/>
+    <Button Content="Browser setup" Click="BrowserClick"/>
+   </WrapPanel>
+  </Border>
+  <StatusBar DockPanel.Dock="Bottom" Background="White" Padding="10,6">
+   <StatusBarItem><TextBlock x:Name="Summary" Text="Ready"/></StatusBarItem>
+   <Separator/><StatusBarItem><TextBlock x:Name="LimitStatus"/></StatusBarItem>
+   <Separator/><StatusBarItem><TextBlock x:Name="ScheduleStatus"/></StatusBarItem>
+  </StatusBar>
+  <Border DockPanel.Dock="Bottom" Background="#EDF2F7" Padding="16,12" BorderBrush="#DFE5EC" BorderThickness="0,1,0,0">
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <StackPanel><TextBlock x:Name="SelectionTitle" Text="Select a download to see its details" FontWeight="SemiBold"/>
+    <TextBlock x:Name="SelectionDetail" TextWrapping="Wrap" Margin="0,4,12,0" Foreground="#526075"/>
+    <TextBlock x:Name="SelectionHash" Margin="0,4,12,0" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap"/></StackPanel>
+    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"><Button Content="Details" Click="DetailsClick"/><Button Content="Open folder" Click="FolderClick"/><Button Content="Replace URL" Click="ReplaceClick"/></StackPanel>
+   </Grid>
+  </Border>
+  <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="195"/><ColumnDefinition/></Grid.ColumnDefinitions>
+   <Border Background="#EEF2F6" Padding="12,18" BorderBrush="#DFE5EC" BorderThickness="0,0,1,0">
+    <DockPanel><StackPanel DockPanel.Dock="Bottom" Margin="4,16,0,0"><TextBlock Text="DOWNLOAD LOCATION" FontSize="10" Foreground="#66758A"/><TextBlock x:Name="LocationLabel" TextWrapping="Wrap" FontSize="11" Foreground="#526075" Margin="0,6,0,0"/></StackPanel>
+    <StackPanel><TextBlock Text="LIBRARY" Margin="6,0,0,12" FontSize="11" Foreground="#66758A"/>
+     <ListBox x:Name="Categories" SelectionChanged="CategoryChanged" SelectedIndex="0" BorderThickness="0" Background="Transparent">
+      <ListBoxItem Content="All downloads" Padding="9"/><ListBoxItem Content="Unfinished" Padding="9"/><ListBoxItem Content="Completed" Padding="9"/>
+      <ListBoxItem Content="AI models" Padding="9"/><ListBoxItem Content="Archives" Padding="9"/><ListBoxItem Content="Video" Padding="9"/><ListBoxItem Content="Music" Padding="9"/><ListBoxItem Content="Programs" Padding="9"/><ListBoxItem Content="Documents" Padding="9"/><ListBoxItem Content="Other" Padding="9"/>
+     </ListBox>
+    </StackPanel></DockPanel>
+   </Border>
+   <DockPanel Grid.Column="1" Margin="16">
+    <Grid DockPanel.Dock="Top" Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="260"/></Grid.ColumnDefinitions>
+     <StackPanel><TextBlock x:Name="LibraryTitle" Text="All downloads" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="Pause, resume and organize — without a subscription." Foreground="#66758A" Margin="0,4,0,0"/></StackPanel>
+     <TextBox Grid.Column="1" x:Name="SearchBox" TextChanged="SearchChanged" ToolTip="Filter by filename" VerticalAlignment="Center" Margin="0"/>
+    </Grid>
+    <DataGrid x:Name="Downloads" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Extended" SelectionUnit="FullRow"
+     HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#EDF1F5" RowHeight="42" BorderBrush="#DCE3EB" Background="White" AlternatingRowBackground="#F9FBFD"
+     SelectionChanged="SelectionChanged" MouseDoubleClick="DownloadDoubleClick">
+     <DataGrid.Columns>
+      <DataGridTextColumn Header="File name" Binding="{Binding FileName, Mode=OneWay}" Width="2*" MinWidth="190"/>
+      <DataGridTextColumn Header="Size" Binding="{Binding Size, Mode=OneWay}" Width="85"/>
+      <DataGridTextColumn Header="Status" Binding="{Binding Status, Mode=OneWay}" Width="95"/>
+      <DataGridTemplateColumn Header="Progress" Width="125"><DataGridTemplateColumn.CellTemplate><DataTemplate><Grid Margin="6,10"><ProgressBar Value="{Binding Progress, Mode=OneWay}" Maximum="100" Height="20" Foreground="#23927E"/><TextBlock Text="{Binding Percentage, Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/></Grid></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+      <DataGridTextColumn Header="Speed" Binding="{Binding Speed, Mode=OneWay}" Width="100"/>
+      <DataGridTextColumn Header="Time left" Binding="{Binding Remaining, Mode=OneWay}" Width="105"/>
+      <DataGridTextColumn Header="Category" Binding="{Binding Category, Mode=OneWay}" Width="95"/>
+     </DataGrid.Columns>
+    </DataGrid>
+   </DockPanel>
+  </Grid>
+ </DockPanel>
+</Window>

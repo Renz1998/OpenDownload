@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>OpenDownload</title><link rel="stylesheet" href="popup.css"></head>
+<body><h1>OpenDownload</h1><p class="sub">Send a link to your desktop download queue.</p>
+<label for="url">Download URL</label><input id="url" type="url" placeholder="https://example.com/file.zip">
+<button id="download">Download</button><button id="test" class="secondary">Check connection</button>
+<hr><label class="check"><input id="capture" type="checkbox"> Automatically capture browser downloads</label>
+<label for="hosts">Limit capture to these hosts (optional)</label><input id="hosts" placeholder="example.com, downloads.example.org">
+<p class="sub">Capture is off by default. Signed-in downloads may need a token or cookie entered in the desktop app. Protected streams are not supported.</p>
+<p id="status" role="status"></p><script src="popup.js"></script></body></html>

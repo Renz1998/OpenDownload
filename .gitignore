@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+artifacts/
+.vs/
+*.user
+*.db
+*.db-shm
+*.db-wal
+*.part
+*.odpart
+test-results/
+native-host.json
+local-settings.json
