@@ -148,7 +148,7 @@ public sealed class DownloadEngine : IDisposable
             if (job.TotalBytes.HasValue && segment.Committed >= segment.Length) return;
             try { await TransferAsync(job, segment, ct); return; }
             catch (Exception ex) when (attempt < 3 && !ct.IsCancellationRequested && ex is not SourceChangedException &&
-                (ex is HttpRequestException { StatusCode: null } || ex is EndOfStreamException || ex is OperationCanceledException))
+                (ex is HttpRequestException { StatusCode: null } || ex is HttpIOException { HttpRequestError: HttpRequestError.ResponseEnded } || ex is EndOfStreamException || ex is OperationCanceledException))
             {
                 if (!job.SupportsRanges) Interlocked.Exchange(ref segment.Committed, 0);
                 await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), ct);

@@ -80,7 +80,13 @@ try
             for (int i = 0; i < 80; i++)
             {
                 await Task.Delay(25, timeout.Token);
-                try { job = JsonSerializer.Deserialize<DownloadJob>(await File.ReadAllTextAsync(state, timeout.Token))!; } catch (IOException) { continue; }
+                try
+                {
+                    // The writer atomically replaces this file; readers must allow that rename on Windows.
+                    await using var checkpoint = new FileStream(state, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    job = (await JsonSerializer.DeserializeAsync<DownloadJob>(checkpoint, cancellationToken: timeout.Token))!;
+                }
+                catch (IOException) { continue; }
                 if (job.Downloaded >= 256 * 1024) break;
                 if (child.HasExited) throw new Exception("Crash child exited early: " + await child.StandardError.ReadToEndAsync());
             }
