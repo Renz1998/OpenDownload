@@ -20,7 +20,7 @@ A free, open-source download manager for Windows 11. A familiar toolbar, categor
 
 Extract a release ZIP to a permanent writable folder and launch `OpenDownload.Desktop.exe`. The .NET runtime is included. Keep the helper EXE and other package files alongside the app.
 
-Default files go to `Downloads\OpenDownload`. Change the location, speed limit, connection count and schedule in **Options / Scheduler**. Your settings and encrypted history live at `%LOCALAPPDATA%\OpenDownload`. Set `OPENDOWNLOAD_DATA` before launch to use another local data folder.
+Default files go to `Downloads\OpenDownload`. Change the location, speed limit, connection count and schedule in **Options / Scheduler**. Your settings and encrypted history live at `%LOCALAPPDATA%\OpenDownload`. Set `OPENDOWNLOAD_DATA` before launch to use another local data folder, or put its absolute path in `data-path.txt` beside the app. The environment variable takes priority. Keep that machine-specific file out of shared release packages.
 
 **Closing the window keeps the app in the tray by default.** Use the tray menu's **Exit** to stop it, or disable close-to-tray in Options. Downloads need Windows awake and the app running; there is no Windows service or automatic startup task.
 
@@ -76,7 +76,7 @@ There are 19 transfer tests, seven Windows persistence tests and seven extension
 python tests/native-smoke.py --app artifacts/OpenDownload --data test-results/native-smoke --root .
 ```
 
-Release ZIPs and checksums are written to `artifacts/`. GitHub Actions builds, tests and uploads the Windows package. A `v*` tag also publishes the package as a GitHub release. Packages are currently unsigned; commercial code signing is not configured.
+Release ZIPs and checksums are written to `artifacts/`. GitHub Actions builds, tests and uploads the Windows package. The first successful main-branch build publishes the `v0.1.0` preview release. Existing release assets are preserved; later version releases require a new `v*` tag and corresponding package version update. Packages are currently unsigned; commercial code signing is not configured.
 
 ## Scope and roadmap
 

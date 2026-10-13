@@ -38,7 +38,9 @@ public partial class App : Application
             catch { /* Already-running instance may be busy; never start a second writer. */ }
             Shutdown(); return;
         }
-        DataDirectory = Environment.GetEnvironmentVariable("OPENDOWNLOAD_DATA") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenDownload");
+        string configPath = Path.Combine(AppContext.BaseDirectory, "data-path.txt");
+        DataDirectory = Environment.GetEnvironmentVariable("OPENDOWNLOAD_DATA") ??
+            (File.Exists(configPath) ? File.ReadAllText(configPath).Trim() : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenDownload"));
         Directory.CreateDirectory(DataDirectory);
         DispatcherUnhandledException += (_, error) =>
         {
