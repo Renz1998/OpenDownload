@@ -38,7 +38,7 @@ public partial class MainWindow : Window
         Downloads.ItemsSource = rows;
         FocusDownloads.ItemsSource = rows;
         CollectionViewSource.GetDefaultView(rows).Filter = MatchesFilter;
-        tray = new System.Windows.Forms.NotifyIcon { Text = "OpenDownload", Icon = System.Drawing.SystemIcons.Application, Visible = true };
+        tray = new System.Windows.Forms.NotifyIcon { Text = "OpenDownload", Icon = new System.Drawing.Icon(Application.GetResourceStream(new Uri("BrandIcon.ico", UriKind.Relative)).Stream), Visible = true };
         var menu = new System.Windows.Forms.ContextMenuStrip();
         menu.Items.Add("Show OpenDownload", null, (_, _) => Dispatcher.Invoke(ShowWindow));
         menu.Items.Add("Pause all downloads", null, (_, _) => Dispatcher.Invoke(PauseAll));
@@ -244,6 +244,6 @@ public partial class MainWindow : Window
     {
         if (quitting) return; quitting = true; timer.Stop(); PauseAll();
         await Task.WhenAll(running.Values.Select(v => v.Task).ToArray());
-        Save(); tray.Dispose(); store.Dispose(); engine.Dispose(); Close(); Application.Current.Shutdown();
+        Save(); var trayIcon = tray.Icon; tray.Dispose(); trayIcon?.Dispose(); store.Dispose(); engine.Dispose(); Close(); Application.Current.Shutdown();
     }
 }

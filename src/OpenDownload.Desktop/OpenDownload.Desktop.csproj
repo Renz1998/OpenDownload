@@ -6,7 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-  </PropertyGroup>
+  <ApplicationIcon>../../assets/OpenDownload.ico</ApplicationIcon></PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../OpenDownload.Core/OpenDownload.Core.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.13" />
@@ -14,4 +14,4 @@
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
   </ItemGroup>
-</Project>
+<ItemGroup><Resource Include="../../assets/icon-256.png" Link="BrandIcon.png"/><Resource Include="../../assets/OpenDownload.ico" Link="BrandIcon.ico"/></ItemGroup></Project>

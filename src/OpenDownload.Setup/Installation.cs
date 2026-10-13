@@ -102,7 +102,7 @@ public static class Installation
             if (!testMode)
             {
                 string cache = Path.Combine(AppPaths.DataFolder(target), "installer"); Directory.CreateDirectory(cache);
-                string cachedSetup = Path.Combine(cache, "OpenDownload.Setup-0.2.0.exe");
+                string cachedSetup = Path.Combine(cache, "OpenDownload.Setup-0.2.1.exe");
                 string currentExe = Environment.ProcessPath ?? throw new IOException("Cannot locate this installer.");
                 if (!Path.GetFullPath(currentExe).Equals(Path.GetFullPath(cachedSetup), StringComparison.OrdinalIgnoreCase)) File.Copy(currentExe, cachedSetup, true);
                 foreach (var browser in Browsers)
@@ -113,7 +113,7 @@ public static class Installation
                 }
                 using (var key = Registry.CurrentUser.CreateSubKey(UninstallKey))
                 {
-                    key.SetValue("DisplayName", "OpenDownload"); key.SetValue("DisplayVersion", "0.2.0"); key.SetValue("Publisher", "OpenDownload contributors"); key.SetValue("InstallLocation", target);
+                    key.SetValue("DisplayName", "OpenDownload"); key.SetValue("DisplayVersion", "0.2.1"); key.SetValue("Publisher", "OpenDownload contributors"); key.SetValue("InstallLocation", target);
                     key.SetValue("UninstallString", $"\"{cachedSetup}\" --uninstall \"{target}\""); key.SetValue("DisplayIcon", Path.Combine(target, "OpenDownload.Desktop.exe")); key.SetValue("NoModify", 1); key.SetValue("NoRepair", 1);
                 }
                 CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "OpenDownload", "OpenDownload.lnk"), target);
@@ -134,7 +134,7 @@ public static class Installation
     {
         Directory.CreateDirectory(Path.GetDirectoryName(link)!);
         dynamic shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell")!)!;
-        dynamic shortcut = shell.CreateShortcut(link); shortcut.TargetPath = Path.Combine(target, "OpenDownload.Desktop.exe"); shortcut.WorkingDirectory = target; shortcut.Description = "OpenDownload — Workbench or Focus"; shortcut.Save();
+        dynamic shortcut = shell.CreateShortcut(link); shortcut.TargetPath = Path.Combine(target, "OpenDownload.Desktop.exe"); shortcut.IconLocation = Path.Combine(target, "OpenDownload.Desktop.exe") + ",0"; shortcut.WorkingDirectory = target; shortcut.Description = "OpenDownload — Workbench or Focus"; shortcut.Save();
     }
     public static void Remove(string destination, bool testMode)
     {
