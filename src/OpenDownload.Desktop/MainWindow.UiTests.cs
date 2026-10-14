@@ -48,8 +48,13 @@ public partial class MainWindow
             settings.BrowserCheckedAt=null; browserSeen=null; UpdateBrowserConnectionUi();
             Check(BrowserConnectBanner.Visibility==Visibility.Visible && LiveBrowserStatus.Content.ToString()=="Connect your browser","Focus exposes an obvious first-time browser connection action");
             RecordBrowserCheck(); UpdateBrowserConnectionUi();
-            Check(BrowserConnectBanner.Visibility==Visibility.Collapsed && LiveBrowserStatus.Style==FindResource("QuietButton"),"Connected browser setup becomes a quiet status instead of a banner");
-            browserSeen=null; UpdateBrowserConnectionUi(); Check(BrowserConnectBanner.Visibility==Visibility.Collapsed && LiveBrowserStatus.Content.ToString()=="Browser offline","Closing the browser does not bring back first-time setup");
+            Check(BrowserConnectBanner.Visibility==Visibility.Visible && FocusBrowserButton.Content.ToString()=="Check browser connection" && FocusBrowserButton.Style==FindResource("QuietButton"),"Focus keeps a quiet check button and instructions after connection");
+            browserSeen=null; UpdateBrowserConnectionUi(); Check(BrowserConnectBanner.Visibility==Visibility.Visible && FocusBrowserButton.Content.ToString()=="Check browser connection","Focus keeps connection check and instructions available while the browser is offline");
+            bool checkSuccess=await CheckBrowserConnectionAsync(()=> { RecordBrowserCheck(); return Task.CompletedTask; },TimeSpan.FromMilliseconds(300));
+            Check(checkSuccess && !browserConnectionFailed,"Connection checks require a fresh extension response");
+            checkSuccess=await CheckBrowserConnectionAsync(()=>Task.CompletedTask,TimeSpan.FromMilliseconds(20));
+            Check(!checkSuccess && browserConnectionFailed && FocusBrowserButton.Content.ToString()=="Connect your browser","Failed checks restore the connection action instead of accepting an old check timestamp");
+            RecordBrowserCheck(); UpdateBrowserConnectionUi();
             var firstFocusRow=(DownloadRow)FocusDownloads.Items[0]; FocusDownloads.ScrollIntoView(firstFocusRow); await Dispatcher.InvokeAsync(UpdateLayout,DispatcherPriority.ApplicationIdle);
             var focusItem=(ListBoxItem)FocusDownloads.ItemContainerGenerator.ContainerFromItem(firstFocusRow);
             Check(DownloadActivationRow(FocusDownloads,focusItem)==firstFocusRow && DownloadActivationRow(FocusDownloads,FindVisualButtons(focusItem).First())==null,"Double-click targets the download card and excludes action buttons");
@@ -58,6 +63,7 @@ public partial class MainWindow
             Check(TaskbarItemInfo.ProgressState==System.Windows.Shell.TaskbarItemProgressState.Normal && Math.Abs(TaskbarItemInfo.ProgressValue-0.65)<0.001,"Taskbar progress follows received bytes");
             rows[0].Job.Status=DownloadStatus.Connecting; UpdateTaskbarProgress();
             Check(TaskbarItemInfo.ProgressState==System.Windows.Shell.TaskbarItemProgressState.Indeterminate,"Taskbar animates while connecting"); rows[0].Job.Status=DownloadStatus.Paused; UpdateTaskbarProgress();
+            DismissNoticeClick(this,new());
             Capture("focus.png");
             var welcome = new LayoutChooser { Owner = this };
             _ = Dispatcher.BeginInvoke(new Action(() => FindButtons((DependencyObject)welcome.Content).Single(b => b.Content?.ToString() == "Use Focus").RaiseEvent(new RoutedEventArgs(Button.ClickEvent))), DispatcherPriority.ApplicationIdle);
@@ -100,8 +106,8 @@ public partial class MainWindow
                 FindButtons(window.Window).Single(b=>b.Content?.ToString()=="Open file").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Check(opened,"Completion notification exposes an actionable Open file button");
             }
-            RecordBrowserStatus(true,true); UpdateLibraryActivity(); Check(LiveBrowserStatus.Content.ToString()!.Contains("needs attention"),"Recent browser handoff failures are visible");
-            RecordBrowserStatus(true,false); UpdateLibraryActivity(); Check(LiveBrowserStatus.Content.ToString()!.Contains("capture on"),"Live browser connection reports capture state");
+            RecordBrowserStatus(true,true); UpdateLibraryActivity(); Check(BrowserConnectTitle.Text.Contains("needs attention"),"Recent browser handoff failures are visible");
+            RecordBrowserStatus(true,false); UpdateLibraryActivity(); Check(BrowserConnectHint.Text.Contains("capture on"),"Live browser connection reports capture state");
             var promptRow=AddJob(new BrowserRequest { Url="https://example.invalid/example.PNG",FileName="example.PNG" },App.DataDirectory,true); promptRow.Job.AwaitingDestination=true;
             _=Dispatcher.BeginInvoke(new Action(()=>
             {

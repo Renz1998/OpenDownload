@@ -43,20 +43,27 @@ public partial class MainWindow
         double speed=rows.Sum(r=>r.Job.BytesPerSecond); speedHistory.Add(speed); RenderSpeedChart();
         UpdateBrowserConnectionUi();
     }
+    private bool browserConnectionFailed, checkingBrowser;
     private void UpdateBrowserConnectionUi()
     {
         bool live=browserSeen.HasValue && DateTimeOffset.Now-browserSeen.Value<TimeSpan.FromSeconds(90);
-        bool attention=live && browserHandoffError;
+        bool attention=browserConnectionFailed || live && browserHandoffError;
         bool connectedBefore=live || settings.BrowserCheckedAt.HasValue;
-        bool showConnect=settings.Layout=="Focus" && (!connectedBefore || attention);
-        var bannerVisibility=showConnect ? Visibility.Visible : Visibility.Collapsed;
-        if(BrowserConnectBanner.Visibility!=bannerVisibility) { BrowserConnectBanner.Visibility=bannerVisibility; if(showConnect) Motion.Reveal(BrowserConnectBanner); }
-        BrowserConnectHint.Text=attention ? "Your browser could not send a download. Click Connect your browser to check the setup." : "Connect Chrome or Edge once. Click Connect your browser to see the steps.";
-        LiveBrowserStatus.Content=live ? attention ? "Browser needs attention" : browserCapture ? "Browser connected · capture on" : "Browser connected" : connectedBefore ? "Browser offline" : "Connect your browser";
-        LiveBrowserStatus.Style=(Style)FindResource(connectedBefore && !attention ? "QuietButton" : "PrimaryButton");
-        BrowserStatus.Content=live ? attention ? "Browser needs attention" : "Browser connected" : connectedBefore ? "Browser offline" : "Connect your browser";
-        LiveBrowserStatus.ToolTip=live ? "Connected to your browser. Click to view setup or troubleshoot." : connectedBefore ? "Open your browser and the connection will refresh. Click here if you need help." : "Click to connect Chrome or Edge. The setup guide walks you through each step.";
-
+        bool ready=connectedBefore && !attention;
+        string action=checkingBrowser ? "Checking connection..." : ready ? "Check browser connection" : "Connect your browser";
+        string title=attention ? "Browser connection needs attention" : live ? "Browser connected" : connectedBefore ? "Check your browser connection" : "Connect your browser";
+        BrowserConnectBanner.Visibility=settings.Layout=="Focus" ? Visibility.Visible : Visibility.Collapsed;
+        BrowserConnectBanner.Background=(Brush)FindResource(ready ? "Surface" : "Selected");
+        BrowserConnectBanner.BorderBrush=(Brush)FindResource(ready ? "Line" : "Accent");
+        BrowserConnectTitle.Text=title;
+        BrowserConnectHint.Text=attention ? "The connection failed. Open Setup instructions to reconnect Chrome or Edge." : ready ? (live ? browserCapture ? "Automatic capture on. " : "Automatic capture off. " : "")+"Click Check browser connection to test it now. Setup instructions are always available beside it." : "Start here: click Connect your browser, then follow the illustrated steps for Chrome or Edge.";
+        FocusBrowserButton.Content=action; FocusBrowserButton.IsEnabled=!checkingBrowser;
+        FocusBrowserButton.Style=(Style)FindResource(ready ? "QuietButton" : "PrimaryButton");
+        LiveBrowserStatus.Content=action; LiveBrowserStatus.IsEnabled=!checkingBrowser;
+        LiveBrowserStatus.Visibility=settings.Layout=="Focus" ? Visibility.Collapsed : Visibility.Visible;
+        LiveBrowserStatus.Style=(Style)FindResource(ready ? "QuietButton" : "PrimaryButton");
+        BrowserStatus.Content=action; BrowserStatus.IsEnabled=!checkingBrowser;
+        FocusBrowserButton.ToolTip=LiveBrowserStatus.ToolTip="Run a fresh browser connection check. If it fails, the setup instructions reopen.";
     }
     private void RenderSpeedChart()
     {

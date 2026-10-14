@@ -122,5 +122,5 @@ public partial class MainWindow
     { foreach (var row in removed) { row.Job.Hidden = false; rows.Add(row); } removed.Clear(); Save(); UpdateEmptyState(); ShowNotice("Entries restored."); }
     private void DefaultFolderClick(object sender, RoutedEventArgs e)
     { Directory.CreateDirectory(settings.DownloadDirectory); Process.Start(new ProcessStartInfo("explorer.exe") { UseShellExecute = true, ArgumentList = { settings.DownloadDirectory } }); }
-    public void RecordBrowserCheck(bool capture=false) { RecordBrowserStatus(capture,false); settings.BrowserCheckedAt = DateTimeOffset.Now; UpdateSettingsLabels(); Save(); }
+    public void RecordBrowserCheck(bool capture=false) { browserConnectionFailed=false; RecordBrowserStatus(capture,false); settings.BrowserCheckedAt = DateTimeOffset.Now; UpdateSettingsLabels(); Save(); }
 }

@@ -208,7 +208,7 @@ public partial class MainWindow : Window
     }
     private void BrowserClick(object sender, RoutedEventArgs e)
     {
-        new BrowserSetupDialog(() => settings.BrowserCheckedAt) { Owner = this }.ShowDialog(); UpdateSettingsLabels();
+        new BrowserSetupDialog(() => settings.BrowserCheckedAt,settings.PreferredBrowser,browser=> { settings.PreferredBrowser=browser; Save(); }) { Owner = this }.ShowDialog(); UpdateSettingsLabels(); UpdateBrowserConnectionUi();
     }
     private void CategoryChanged(object sender, SelectionChangedEventArgs e)
     {

@@ -8,14 +8,14 @@ using System.Windows.Threading;
 namespace OpenDownload.Desktop;
 public sealed class BrowserSetupDialog : Window
 {
-    public BrowserSetupDialog(Func<DateTimeOffset?> checkedAt)
+    public BrowserSetupDialog(Func<DateTimeOffset?> checkedAt,string preferredBrowser="Chrome",Action<string>? browserSelected=null)
     {
         Style = (Style)Application.Current.FindResource(typeof(Window));
         Title = "Connect Chrome or Edge"; Width = 800; Height = 790; MaxHeight = SystemParameters.WorkArea.Height - 30; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         var panel = new StackPanel { Margin = new Thickness(26) }; Content = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         panel.Children.Add(new TextBlock { Text = "Connect your browser to OpenDownload", FontSize = 23, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
         DialogUi.Label(panel, "Follow these three steps once. Keep this window open so you can return to it after each step. Start by choosing the browser you use below.");
-        var browser = new ComboBox { ItemsSource = new[] { "Chrome", "Edge" }, SelectedIndex = 0, Margin = new Thickness(0, 16, 0, 10), Width = 160, HorizontalAlignment = HorizontalAlignment.Left }; panel.Children.Add(browser);
+        var browser = new ComboBox { ItemsSource = new[] { "Chrome", "Edge" }, SelectedIndex = preferredBrowser=="Edge" ? 1 : 0, Margin = new Thickness(0, 16, 0, 10), Width = 160, HorizontalAlignment = HorizontalAlignment.Left }; panel.Children.Add(browser);
         var status = new TextBlock { Foreground = (Brush)FindResource("Accent"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 8) };
         void Action(Action action) { try { action(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Text.Json.JsonException or System.ComponentModel.Win32Exception) { status.Text = ex.Message; } }
         async Task BrowserAction(bool check) { try { BrowserIntegration.Register(); await BrowserIntegration.OpenBrowser(browser.SelectedItem!.ToString()!, check); status.Text = check ? "Testing the connection. Look for Connected to OpenDownload in the browser tab." : "Step 1 is ready. In the browser tab that opened, turn on Developer mode. Then return here and follow Step 2."; } catch (Exception ex) { status.Text = ex.Message; } }
@@ -25,7 +25,7 @@ public sealed class BrowserSetupDialog : Window
             string file = Path.Combine(AppContext.BaseDirectory, "docs", "images", browser.SelectedItem?.ToString() == "Edge" ? "edge-setup.png" : "chrome-setup.png");
             if (File.Exists(file)) picture.Source = new BitmapImage(new Uri(file));
         }
-        browser.SelectionChanged += (_, _) => UpdatePicture(); UpdatePicture();
+        browser.SelectionChanged += (_, _) => { UpdatePicture(); browserSelected?.Invoke(browser.SelectedItem!.ToString()!); }; UpdatePicture();
         Heading("1", "Choose your browser, then open its extensions page");
         var open = new Button { Content = "1. Open browser setup", Style = (Style)FindResource("PrimaryButton"), HorizontalAlignment = HorizontalAlignment.Left };
         open.Click += async (_, _) => await BrowserAction(false); panel.Children.Add(open);

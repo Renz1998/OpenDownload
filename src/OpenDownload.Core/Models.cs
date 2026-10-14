@@ -71,6 +71,7 @@ public sealed class Settings
     public bool CompactRows { get; set; }
     public int GamingLimitKiB { get; set; } = 5120;
     public int? PreviousSpeedLimitKiB { get; set; }
+    public string PreferredBrowser { get; set; } = "Chrome";
     public DateTimeOffset? BrowserCheckedAt { get; set; }
     public string DownloadDirectory { get; set; } = DownloadFolders.Default;
     public int Connections { get; set; } = 4;
