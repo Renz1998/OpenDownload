@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "OpenDownload Integration",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Send links and optional browser downloads to the free OpenDownload desktop app.",
   "permissions": [
     "nativeMessaging",

@@ -92,6 +92,18 @@ public partial class MainWindow
             destinationPrompts.Enqueue(promptRow); ProcessDestinationPrompts();
             Check(!promptRow.Job.AwaitingDestination && promptRow.Job.Status==DownloadStatus.Queued && settings.TypeFolders.ContainsKey(".png") && !settings.TypeFolders.ContainsKey(".jpg"),"Destination modal remembers only its selected file extension");
             Check(store.LoadSettings().TypeFolders[".png"]==Path.Combine(App.DataDirectory,"images"),"File-type destination persists");
+            settings.ShowProgressWindow=true;
+            Check(!ShouldShowTransferWindow(promptRow),"Remembered destinations do not reopen the activity popup");
+            Check(ShouldShowTransferWindow(rows.First(r=>r.FileName.EndsWith(".safetensors"))),"Unremembered types still honor the activity-window setting");
+            var remembered=AddJob(new BrowserRequest { Url="https://example.invalid/next.PNG",FileName="next.PNG" },App.DataDirectory,true); remembered.Job.AwaitingDestination=true;
+            destinationPrompts.Enqueue(remembered); ProcessDestinationPrompts();
+            Check(!remembered.Job.AwaitingDestination && Path.GetDirectoryName(remembered.Job.Destination)==settings.TypeFolders[".png"],"Repeated remembered type starts without another destination modal");
+            allJobs.Remove(remembered.Job); rows.Remove(remembered); store.Remove(remembered.Job.Id);
+            var themedMenu=MoreMenu(); themedMenu.PlacementTarget=this; themedMenu.IsOpen=true;
+            await Dispatcher.InvokeAsync(()=>{},DispatcherPriority.ApplicationIdle);
+            Check(themedMenu.Template!=null && themedMenu.Items.OfType<MenuItem>().All(item=>item.Template!=null),"Context menu and rows use themed templates without the system icon gutter");
+            GuidePictures.Save(themedMenu,(int)themedMenu.ActualWidth,(int)themedMenu.ActualHeight,Path.Combine(output,"context-menu.png"));
+            themedMenu.IsOpen=false;
             allJobs.Remove(promptRow.Job); rows.Remove(promptRow); store.Remove(promptRow.Job.Id);
             var cancelled=AddJob(new BrowserRequest { Url="https://example.invalid/example.zip" },App.DataDirectory,true); cancelled.Job.AwaitingDestination=true;
             _=Dispatcher.BeginInvoke(new Action(()=>Application.Current.Windows.OfType<DestinationDialog>().Single().Close()),DispatcherPriority.ApplicationIdle);

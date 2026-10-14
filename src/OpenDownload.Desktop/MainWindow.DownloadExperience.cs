@@ -47,9 +47,11 @@ public partial class MainWindow
         finally { promptingDestination=false; }
         Tick();
     }
+    private bool ShouldShowTransferWindow(DownloadRow row) => settings.ShowProgressWindow &&
+        !settings.TypeFolders.ContainsKey(DownloadFolders.TypeKey(row.FileName));
     private void ShowTransferWindow(DownloadRow row)
     {
-        if(!settings.ShowProgressWindow || Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE")=="1") return;
+        if(!ShouldShowTransferWindow(row) || Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE")=="1") return;
         if(activityWindow==null)
         {
             activityWindow=new TransferActivityWindow(r=>Pause(r),r=> { if(!running.ContainsKey(r.Job.Id)) { r.Job.Status=OpenDownload.Core.DownloadStatus.Queued; queuePaused=false; Tick(); } }) { Owner=this };

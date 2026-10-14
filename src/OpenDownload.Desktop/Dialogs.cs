@@ -110,7 +110,7 @@ public sealed class OptionsDialog : Window
         DialogUi.Label(panel, "Concurrent downloads (1–8)"); var concurrent = DialogUi.Input(panel, current.ConcurrentDownloads.ToString());
         DialogUi.Label(panel, "Global speed limit in KiB/s (0 = unlimited)"); var speed = DialogUi.Input(panel, current.SpeedLimitKiB.ToString());
         DialogUi.Label(panel, "Gaming mode shared cap in KiB/s"); var gaming = DialogUi.Input(panel, current.GamingLimitKiB.ToString());
-        var progressPopup=DialogUi.Check(panel,"Show the shared download activity window when downloads start",current.ShowProgressWindow);
+        var progressPopup=DialogUi.Check(panel,"Show activity window for downloads without a remembered file-type folder",current.ShowProgressWindow);
         var completionAlerts=DialogUi.Check(panel,"Show completion notifications with Open file and Open folder",current.CompletionNotifications);
         var editedRules=new Dictionary<string,string>(current.TypeFolders);
         var rulePanel=new StackPanel(); DialogUi.Label(panel,"Remembered file-type folders"); panel.Children.Add(rulePanel);
@@ -132,6 +132,13 @@ public sealed class OptionsDialog : Window
         DialogUi.Label(panel, "Stop time (24-hour HH:mm; same as start = all day)"); var stop = DialogUi.Input(panel, TimeSpan.FromMinutes(current.ScheduleEndMinute).ToString(@"hh\:mm"));
         DialogUi.Label(panel, "Windows must be awake and OpenDownload running. The app pauses transfers outside this window. Paused downloads only resume when you choose Resume.");
         var tray = DialogUi.Check(panel, "Close window to tray (use tray menu → Exit to stop the app)", current.MinimizeToTray);
+        var support = new Button { Content = "Help me build more things ☕", HorizontalAlignment = HorizontalAlignment.Left, Style = (Style)Application.Current.FindResource("QuietButton"), ToolTip = "Optional support on Ko-fi" };
+        support.Click += (_, _) =>
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://ko-fi.com/renzuwu") { UseShellExecute = true }); }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { MessageBox.Show(this, "Open https://ko-fi.com/renzuwu in your browser.", "Support OpenDownload"); }
+        };
+        panel.Children.Add(support);
         DialogUi.Buttons(panel, this, "Save options", () =>
         {
             try

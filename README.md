@@ -1,20 +1,20 @@
 # OpenDownload
 
-[![Download Windows installer](https://img.shields.io/badge/Download_Windows_installer-.exe-58C9A8?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Renz1998/OpenDownload/releases/download/v0.4.0/OpenDownload-0.4.0-Setup.exe)
+[![Download Windows installer](https://img.shields.io/badge/Download_Windows_installer-.exe-58C9A8?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Renz1998/OpenDownload/releases/download/v0.4.1/OpenDownload-0.4.1-Setup.exe)
 
-**[Download OpenDownload 0.4.0 for Windows (.exe)](https://github.com/Renz1998/OpenDownload/releases/download/v0.4.0/OpenDownload-0.4.0-Setup.exe)**
+**[Download OpenDownload 0.4.1 for Windows (.exe)](https://github.com/Renz1998/OpenDownload/releases/download/v0.4.1/OpenDownload-0.4.1-Setup.exe)**
 
 Windows 11, 64-bit. Download and run the installer; the .NET runtime is included.
 
-[Portable ZIP](https://github.com/Renz1998/OpenDownload/releases/download/v0.4.0/OpenDownload-0.4.0-win-x64.zip) | [Release notes and checksums](https://github.com/Renz1998/OpenDownload/releases/tag/v0.4.0) | [Browser extension setup guide](docs/browser-setup.html)
+[Portable ZIP](https://github.com/Renz1998/OpenDownload/releases/download/v0.4.1/OpenDownload-0.4.1-win-x64.zip) | [Release notes and checksums](https://github.com/Renz1998/OpenDownload/releases/tag/v0.4.1) | [Browser extension setup guide](docs/browser-setup.html)
 
 A free, open-source download manager for Windows 11. A familiar toolbar, category sidebar and download table, with an independent transfer engine and Chrome/Edge extension. No trial, account, ads or subscription.
 
-**Version 0.4.0 is a preview release, not full IDM parity.** OpenDownload has its own branding, source code and browser helper. It does not replace IDM's helper, reset its trial, or redistribute its extension.
+**Version 0.4.1 is a preview release, not full IDM parity.** OpenDownload has its own branding, source code and browser helper. It does not replace IDM's helper, reset its trial, or redistribute its extension.
 
 ## See the app
 
-Actual screenshots of OpenDownload 0.4.0 with example downloads. Switch between these layouts at any time using the menu at the top of the app.
+Actual screenshots of OpenDownload 0.4.1 with example downloads. Switch between these layouts at any time using the menu at the top of the app.
 
 ### Focus (default)
 
@@ -47,7 +47,7 @@ A download table with a category sidebar for managing a larger library.
 
 ## Run
 
-Run `OpenDownload-0.4.0-Setup.exe` for per-user installation, shortcuts and automatic browser-helper registration. Close OpenDownload using Exit before upgrading. The installer preserves preferences, downloads, unrelated files and the previous program folder as a recovery backup. Uninstall through Windows Settings → Apps; downloaded files, settings/history and the cached installer are kept. Alternatively extract the portable ZIP and launch `OpenDownload.Desktop.exe`. The .NET runtime is included.
+Run `OpenDownload-0.4.1-Setup.exe` for per-user installation, shortcuts and automatic browser-helper registration. Close OpenDownload using Exit before upgrading. The installer preserves preferences, downloads, unrelated files and the previous program folder as a recovery backup. Uninstall through Windows Settings → Apps; downloaded files, settings/history and the cached installer are kept. Alternatively extract the portable ZIP and launch `OpenDownload.Desktop.exe`. The .NET runtime is included.
 
 New installations save files to your Windows **Downloads** folder (`C:\Users\<user>\Downloads` on a typical setup). Existing custom download folders are preserved. Change the location, speed limit, connection count and schedule in **Settings**. Your settings and encrypted history live at `%LOCALAPPDATA%\OpenDownload`. Set `OPENDOWNLOAD_DATA` before launch to use another local data folder, or put its absolute path in `data-path.txt` beside the app. The environment variable takes priority. Keep that machine-specific file out of shared release packages.
 
@@ -120,6 +120,10 @@ IDM extension feasibility: the locally installed `IDMMsgHost.json` registers `co
 Do not commit local databases, partial files, signed download links, access tokens, cookies, browser profiles or personal logs. The repository ignores generated builds, download history and test output. DPAPI protects local records for the current Windows account; moving the database to a different account will not decrypt it.
 
 The app performs no telemetry and stores no credentials on GitHub. Report bugs with test URLs and redacted reproduction steps. Dependencies and their licenses are listed in `THIRD-PARTY.md`.
+
+## Help me build more things
+
+Enjoying OpenDownload? [Buy me a coffee on Ko-fi](https://ko-fi.com/renzuwu) and help me keep making useful little tools. Support is optional; OpenDownload stays free and open source.
 
 ## License
 
