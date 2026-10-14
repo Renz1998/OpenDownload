@@ -12,6 +12,22 @@ A free, open-source download manager for Windows 11. A familiar toolbar, categor
 
 **Version 0.4.0 is a preview release, not full IDM parity.** OpenDownload has its own branding, source code and browser helper. It does not replace IDM's helper, reset its trial, or redistribute its extension.
 
+## See the app
+
+Actual screenshots of OpenDownload 0.4.0 with example downloads. Switch between these layouts at any time using the menu at the top of the app.
+
+### Focus (default)
+
+A simple card view with progress, quick actions and download details.
+
+![OpenDownload Focus mode: download cards, sorting, speed units and a details panel](docs/images/focus.png)
+
+### Workbench
+
+A download table with a category sidebar for managing a larger library.
+
+![OpenDownload Workbench mode: category sidebar, download table and details panel](docs/images/workbench.png)
+
 ## Features
 
 - Focus mode by default, a first-launch Workbench/Focus chooser, remembered layout and a permanent switch.
