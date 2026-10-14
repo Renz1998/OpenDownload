@@ -83,7 +83,7 @@ public partial class MainWindow
         var menu = new ContextMenu();
         void Add(string title, RoutedEventHandler handler) { var item = new MenuItem { Header = title }; item.Click += handler; menu.Items.Add(item); }
         Add("Advanced details", DetailsClick); Add("Update download link", ReplaceClick); Add("Restart incomplete download…", RestartClick);
-        menu.Items.Add(new Separator()); Add("Remove from list — keep files", RemoveClick); Add("Clear completed entries", ClearClick);
+        menu.Items.Add(new Separator()); Add("Remove from list — keep files", RemoveClick); Add("Remove and delete files...", DeleteClick); Add("Clear completed entries", ClearClick);
         Add("Restore removed entries", (_, _) =>
         {
             foreach (var job in allJobs.Where(j => j.Hidden)) { job.Hidden = false; rows.Add(new DownloadRow(job)); }

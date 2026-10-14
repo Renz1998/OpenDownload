@@ -7,6 +7,10 @@ let drops = 0;
 const handler = (req, res) => {
   const path = req.url.split('?')[0];
   if (path === '/meta') { res.end(JSON.stringify({sha256: crypto.createHash('sha256').update(payload).digest('hex'), size: payload.length})); return; }
+  if (path === '/api/view' || path === '/image-mislabel') {
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1sAAAAASUVORK5CYII=', 'base64');
+    res.writeHead(200, {'Content-Type': path === '/api/view' ? 'image/png' : 'image/jpeg', 'Content-Length': png.length}); res.end(png); return;
+  }
   if (path === '/mutate') { changed = true; res.end('ok'); return; }
   if (path === '/redirect') { res.writeHead(302, {Location: '/range'}); res.end(); return; }
   if (path === '/cross-auth') { res.writeHead(302, {Location: `http://127.0.0.1:${secondary.address().port}/range?no-auth`}); res.end(); return; }
@@ -18,6 +22,7 @@ const handler = (req, res) => {
   const useRange = !['/ignore', '/unknown', '/novalidator'].includes(path) && req.headers.range && (!req.headers['if-range'] || req.headers['if-range'] === etag);
   let start = 0, end = payload.length - 1;
   const headers = {'Content-Type': 'application/octet-stream', 'Accept-Ranges': 'bytes'};
+  if (path === '/named') headers['Content-Disposition'] = "attachment; filename*=UTF-8''report%20final.zip";
   if (path !== '/novalidator') headers.ETag = etag;
   if (useRange) {
     const match = /bytes=(\d+)-(\d*)/.exec(req.headers.range);

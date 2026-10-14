@@ -11,6 +11,7 @@ public sealed class BrowserRequest
     public string Action { get; set; } = "download";
     public string Url { get; set; } = "";
     public string? FileName { get; set; }
+    public bool SuggestedFileName { get; set; }
     public string? Referer { get; set; }
     public Dictionary<string, string>? Headers { get; set; }
     public string? ExtensionId { get; set; }

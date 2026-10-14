@@ -22,12 +22,21 @@ public sealed class DownloadRow(DownloadJob job) : INotifyPropertyChanged
     {
         get
         {
-            if (!Job.TotalBytes.HasValue || Job.BytesPerSecond <= 0) return Job.Status == DownloadStatus.Completed ? "Downloaded" : "—";
+            if (!Job.TotalBytes.HasValue || Job.BytesPerSecond <= 0) return Job.Status == DownloadStatus.Completed ? Job.StartedAt.HasValue ? "Done in " + Duration(Job.ActiveSeconds) : "Downloaded" : "—";
             var span = TimeSpan.FromSeconds(Math.Min(86400000, Math.Max(0, Job.TotalBytes.Value - Job.Downloaded) / Job.BytesPerSecond));
             return span.TotalDays >= 1 ? $"{(int)span.TotalDays}d {span.Hours}h left" : span.TotalHours >= 1 ? $"{span.Hours}h {span.Minutes}m left" : span.TotalMinutes >= 1 ? $"{span.Minutes}m {span.Seconds}s left" : $"{span.Seconds}s left";
         }
     }
     public string Added => Job.Added.LocalDateTime.ToString("g");
+    public string Timing => "Added: " + Added + "\nStarted: " + (Job.StartedAt?.LocalDateTime.ToString("G") ?? "Not recorded") +
+        "\nFinished: " + (Job.FinishedAt?.LocalDateTime.ToString("G") ?? (Job.Status == DownloadStatus.Completed ? "Not recorded for this older download" : "Not finished")) +
+        "\nDownload time: " + (Job.StartedAt.HasValue ? Duration(Job.ActiveSeconds) + " active" : "Not recorded") +
+        (Job.StartedAt.HasValue && Job.FinishedAt.HasValue ? " / " + Duration((Job.FinishedAt.Value-Job.StartedAt.Value).TotalSeconds) + " elapsed" : "");
+    private static string Duration(double seconds)
+    {
+        var value=TimeSpan.FromSeconds(Math.Max(0,seconds));
+        return value.TotalHours>=1 ? $"{(int)value.TotalHours}h {value.Minutes}m {value.Seconds}s" : value.TotalMinutes>=1 ? $"{value.Minutes}m {value.Seconds}s" : $"{value.TotalSeconds:0.0}s";
+    }
     public string Detail => Job.Error ?? Job.Destination;
     public event PropertyChangedEventHandler? PropertyChanged;
     public void Refresh() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(""));

@@ -25,6 +25,9 @@ public partial class MainWindow
             Summary.Text = "5 example downloads · no network activity";
             await Dispatcher.InvokeAsync(UpdateLayout, DispatcherPriority.ApplicationIdle);
             Check(Downloads.Visibility == Visibility.Visible && FocusDownloads.Visibility == Visibility.Collapsed, "Workbench uses the download table");
+            Theme.ApplyTitleBar(this); Check(Theme.TitleBarMatches(this),"Windows accepts the themed title bar: " + Theme.LastTitleBarResult.ToString("X8"));
+            var browserStart = BrowserIntegration.BrowserStartInfo("chrome.exe","Chrome",false);
+            Check(!browserStart.UseShellExecute && browserStart.ArgumentList.Single()=="chrome://extensions/","Chrome extensions URL is passed directly to its executable");
             Check(((System.Windows.Media.SolidColorBrush)SelectionTitle.Foreground).Color == ((System.Windows.Media.SolidColorBrush)FindResource("Ink")).Color, "Dark theme details text matches readable foreground");
             Capture("workbench.png");
             settings.Layout = "Focus"; ApplyLayout(); SelectOne(rows[0]); await Dispatcher.InvokeAsync(UpdateLayout, DispatcherPriority.ApplicationIdle);
@@ -38,6 +41,13 @@ public partial class MainWindow
             settings.Layout = "Focus"; ApplyLayout(); SelectOne(rows[0]);
             settings.SpeedLimitKiB = 777; GamingClick(this, new()); Check(settings.SpeedLimitKiB == 5120 && settings.PreviousSpeedLimitKiB == 777, "Gaming mode applies one shared cap"); GamingClick(this, new()); Check(settings.SpeedLimitKiB == 777 && settings.PreviousSpeedLimitKiB == null, "Gaming mode restores previous cap");
             SelectOne(rows[0]); RemoveClick(this, new()); Check(rows.Count == 4 && allJobs.Count == 5 && allJobs[0].Hidden, "Remove hides history without deleting files or state"); UndoClick(this, new()); Check(rows.Count == 5 && !allJobs[0].Hidden, "Undo restores removed entry");
+            DismissNoticeClick(this,new()); Check(NoticeBar.Visibility==Visibility.Collapsed,"Notification can be dismissed independently of undo");
+            var recycleJob = new DownloadJob { Destination=Path.Combine(App.DataDirectory,"recycle-test.txt") };
+            string unrelated=Path.Combine(App.DataDirectory,"unrelated.txt");
+            File.WriteAllText(recycleJob.Destination,"completed"); File.WriteAllText(recycleJob.PartialPath,"partial"); File.WriteAllText(unrelated,"keep");
+            RecycleDownloadFiles(recycleJob); Check(!File.Exists(recycleJob.Destination) && !File.Exists(recycleJob.PartialPath) && File.ReadAllText(unrelated)=="keep","Delete recycles only the selected download and its own partial file");
+            var timed = new DownloadRow(new DownloadJob { StartedAt=DateTimeOffset.Now.AddMinutes(-2),FinishedAt=DateTimeOffset.Now,ActiveSeconds=90,Status=DownloadStatus.Completed });
+            Check(timed.Timing.Contains("Started:") && timed.Timing.Contains("Finished:") && timed.Remaining.Contains("1m 30s"),"Completed downloads display timestamps and duration");
             settings.Layout = "Focus"; Save(); Check(store.LoadSettings().Layout == "Focus", "Layout selection persists");
             SearchBox.Text = "not-present"; UpdateEmptyState(); Check(EmptyState.Visibility == Visibility.Visible, "Search empty state is visible"); SearchBox.Text = "";
             Theme.Apply(true); await Dispatcher.InvokeAsync(UpdateLayout, DispatcherPriority.ApplicationIdle); Check(((System.Windows.Media.SolidColorBrush)FindResource("Ink")).Color.R < 50, "Light theme applies readable dark text"); Theme.Apply(false);

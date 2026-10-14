@@ -122,7 +122,7 @@ public sealed class ProgressDialog : Window
         void Update()
         {
             bar.Value = row.Progress;
-            info.Text = $"{row.Status} · {row.Received} of {row.Size}\n{row.Speed} · Remaining {row.Remaining}\n\n{row.Detail}";
+            info.Text = $"{row.Status} · {row.Received} of {row.Size}\n{row.Speed} · Remaining {row.Remaining}\n\n{row.Detail}\n\n{row.Timing}";
             segments.Text = string.Join("\n", row.Job.Segments.Select((s, i) => $"Connection {i + 1}: {DownloadRow.FormatBytes(s.Committed)}"));
         }
         timer.Tick += (_, _) => Update(); Closed += (_, _) => timer.Stop(); Update(); timer.Start();

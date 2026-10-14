@@ -16,6 +16,8 @@ public sealed class DownloadJob
     public bool Hidden { get; set; }
     public string Url { get; set; } = "";
     public string FileName { get; set; } = "";
+    public bool AutoFileName { get; set; } = true;
+    public string? ContentType { get; set; }
     public string Destination { get; set; } = "";
     public DownloadStatus Status { get; set; } = DownloadStatus.Queued;
     public long? TotalBytes { get; set; }
@@ -24,6 +26,15 @@ public sealed class DownloadJob
     public List<Segment> Segments { get; set; } = [];
     public string? Error { get; set; }
     public DateTimeOffset Added { get; set; } = DateTimeOffset.Now;
+    public DateTimeOffset? StartedAt { get; set; }
+    public DateTimeOffset? FinishedAt { get; set; }
+    private double activeSeconds;
+    [JsonIgnore] public long? ActiveTimestamp { get; set; }
+    public double ActiveSeconds
+    {
+        get => activeSeconds + (ActiveTimestamp is long timestamp ? System.Diagnostics.Stopwatch.GetElapsedTime(timestamp).TotalSeconds : 0);
+        set => activeSeconds = value;
+    }
     public string? Sha256 { get; set; }
     public int Connections { get; set; } = 4;
     public string? Referer { get; set; }
@@ -87,7 +98,16 @@ public static class DownloadNames
     }
     public static string FromUrl(Uri uri)
     {
-        try { return Sanitize(Uri.UnescapeDataString(uri.AbsolutePath.Split('/').Last())); }
+        try
+        {
+            foreach (string entry in uri.Query.TrimStart('?').Split('&'))
+            {
+                string[] pair = entry.Split('=', 2);
+                if (pair.Length == 2 && Uri.UnescapeDataString(pair[0]).Equals("filename", StringComparison.OrdinalIgnoreCase))
+                    return Sanitize(Uri.UnescapeDataString(pair[1].Replace("+", " ")));
+            }
+            return Sanitize(Uri.UnescapeDataString(uri.AbsolutePath.Split('/').Last()));
+        }
         catch { return "download.bin"; }
     }
     public static string ReservePath(string directory, string name, IEnumerable<string> reserved)

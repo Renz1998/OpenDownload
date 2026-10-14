@@ -30,8 +30,18 @@ public static class BrowserIntegration
     {
         string exe = browser == "Edge" ? "msedge.exe" : "chrome.exe";
         string? path = null;
+        // Reuse the running browser executable, including nonstandard installations.
+        foreach (var process in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(exe)))
+        {
+            using (process)
+            {
+                try { if (process.MainModule?.FileName is string runningPath && File.Exists(runningPath)) { path = runningPath; break; } }
+                catch (System.ComponentModel.Win32Exception) { }
+                catch (InvalidOperationException) { }
+            }
+        }
         foreach (var hive in new[] { Registry.CurrentUser, Registry.LocalMachine })
-        { using var key = hive.OpenSubKey($"Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\{exe}"); if (key?.GetValue("") is string value && File.Exists(value)) { path = value; break; } }
+        { if (path != null) break; using var key = hive.OpenSubKey($"Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\{exe}"); if (key?.GetValue("") is string value && File.Exists(value.Trim('"'))) { path = value.Trim('"'); break; } }
         if (path == null)
         {
             var candidates = browser == "Edge" ? new[] { Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft", "Edge", "Application", exe) }
@@ -39,7 +49,13 @@ public static class BrowserIntegration
             path = candidates.FirstOrDefault(File.Exists);
         }
         if (path == null) throw new IOException($"{browser} was not found. Open it manually and visit " + (browser == "Edge" ? "edge://extensions" : "chrome://extensions") + ".");
-        var info = new ProcessStartInfo(path) { UseShellExecute = true };
-        info.ArgumentList.Add("--new-tab"); info.ArgumentList.Add(check ? $"chrome-extension://{AppPaths.ExtensionId}/popup.html?setup=1" : browser == "Edge" ? "edge://extensions/" : "chrome://extensions/"); Process.Start(info);
+        Process.Start(BrowserStartInfo(path, browser, check));
+    }
+    internal static ProcessStartInfo BrowserStartInfo(string executable, string browser, bool check)
+    {
+        // Execute Chrome directly so its URL is passed intact; an existing browser opens it in a new tab.
+        var info = new ProcessStartInfo(executable) { UseShellExecute = false };
+        info.ArgumentList.Add(check ? $"chrome-extension://{AppPaths.ExtensionId}/popup.html?setup=1" : browser == "Edge" ? "edge://extensions/" : "chrome://extensions/");
+        return info;
     }
 }

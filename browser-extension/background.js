@@ -40,21 +40,28 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     return true;
   }
 });
-// Interception is explicit opt-in. Leave browser downloads alone if handoff fails.
-chrome.downloads.onCreated.addListener(async item => {
-  const {capture = false, captureHosts = ''} = await chrome.storage.local.get(['capture', 'captureHosts']);
-  if (!capture || item.incognito || !validUrl(item.finalUrl || item.url) || pending.has(item.id)) return;
-  const url = item.finalUrl || item.url;
-  const hosts = captureHosts.split(/[\s,]+/).filter(Boolean).map(s => s.toLowerCase());
-  if (hosts.length && !hosts.includes(new URL(url).hostname.toLowerCase())) return;
-  // Avoid signed-in downloads: version 0.1 does not automatically extract cookies.
-  pending.add(item.id);
-  try {
-    await chrome.downloads.pause(item.id);
-    await send({action: 'download', url, fileName: item.filename ? item.filename.split(/[\\/]/).pop() : undefined, referer: item.referrer});
-    await chrome.downloads.cancel(item.id);
-  } catch (error) {
-    try { await chrome.downloads.resume(item.id); } catch { /* Download may already have finished. */ }
-    await chrome.storage.local.set({lastError: error.message});
-  } finally { pending.delete(item.id); }
+// Hold Chrome's final save until the handoff finishes, including very small downloads.
+chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
+  (async () => {
+    let paused = false, accepted = false, claimed = false;
+    try {
+      const {capture = false, captureHosts = ''} = await chrome.storage.local.get(['capture', 'captureHosts']);
+      const url = item.finalUrl || item.url;
+      if (!capture || item.incognito || !validUrl(url) || pending.has(item.id)) return;
+      const hosts = captureHosts.split(/[\s,]+/).filter(Boolean).map(s => s.toLowerCase());
+      if (hosts.length && !hosts.includes(new URL(url).hostname.toLowerCase())) return;
+      pending.add(item.id); claimed = true;
+      await chrome.downloads.pause(item.id); paused = true;
+      await send({action: 'download', url, fileName: item.filename ? item.filename.split(/[\\/]/).pop() : undefined, suggestedFileName: true, referer: item.referrer});
+      accepted = true;
+      await chrome.downloads.cancel(item.id);
+      // This is the cancelled browser transfer's history only, never an existing downloaded file.
+      try { await chrome.downloads.erase({id: item.id}); } catch { /* Cancellation already succeeded. */ }
+      await chrome.storage.local.remove('lastError');
+    } catch (error) {
+      if (!accepted && paused) { try { await chrome.downloads.resume(item.id); } catch { } }
+      await chrome.storage.local.set({lastError: accepted ? 'OpenDownload accepted the file, but Chrome could not cancel its paused transfer. Cancel it in Chrome to avoid a duplicate.' : error.message});
+    } finally { if (claimed) pending.delete(item.id); suggest(); }
+  })();
+  return true;
 });

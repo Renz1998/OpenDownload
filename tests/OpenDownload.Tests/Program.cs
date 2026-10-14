@@ -47,6 +47,28 @@ try
         Check(Convert.ToHexString(await SHA256.HashDataAsync(stream)).Equals(expected, StringComparison.OrdinalIgnoreCase), "File hash mismatch");
     }
     await Test("segmented file and SHA-256", async () => { using var engine = new DownloadEngine(); var job = Job("/range"); await engine.RunAsync(job, timeout.Token); Check(job.Segments.Count == 4, "Not segmented"); await Verify(job); });
+    await Test("query-string PNG keeps real filename and bytes", async () =>
+    {
+        var job = Job("/api/view?filename=NewScript_00123_.png&type=output&subfolder=");
+        job.FileName = DownloadNames.FromUrl(new Uri(job.Url)); job.Destination = Path.Combine(temp, job.FileName);
+        using var engine = new DownloadEngine(); await engine.RunAsync(job, timeout.Token);
+        Check(job.Status == DownloadStatus.Completed && job.FileName == "NewScript_00123_.png", "Query filename was lost");
+        Check(FileFormats.ImageExtension(await File.ReadAllBytesAsync(job.Destination)) == ".png", "PNG bytes changed");
+        Check(job.StartedAt.HasValue && job.FinishedAt >= job.StartedAt && job.ActiveSeconds > 0, "Completion timing missing");
+    });
+    await Test("image signature corrects misleading MIME extension", async () =>
+    {
+        var job = Job("/image-mislabel"); using var engine = new DownloadEngine(); await engine.RunAsync(job, timeout.Token);
+        Check(job.Status == DownloadStatus.Completed && Path.GetExtension(job.FileName) == ".png" && File.Exists(job.Destination), "Signature did not correct the filename");
+    });
+    await Test("Content-Disposition respects collisions and explicit names", async () =>
+    {
+        string existing = Path.Combine(temp, "report final.zip"); await File.WriteAllTextAsync(existing,"keep");
+        var job = Job("/named"); using var engine = new DownloadEngine(); await engine.RunAsync(job,timeout.Token); await Verify(job);
+        Check(job.FileName == "report final (1).zip" && await File.ReadAllTextAsync(existing) == "keep", "Server filename overwrote a file");
+        var custom = Job("/named"); custom.AutoFileName = false; string original = custom.Destination;
+        await engine.RunAsync(custom,timeout.Token); await Verify(custom); Check(custom.Destination == original, "Custom name changed");
+    });
     await Test("server ignores Range: single stream fallback", async () => { using var engine = new DownloadEngine(); var job = Job("/ignore"); await engine.RunAsync(job, timeout.Token); Check(job.Segments.Count == 1, "Unexpected segmentation"); await Verify(job); });
     await Test("chunked response with unknown length", async () => { using var engine = new DownloadEngine(); var job = Job("/unknown"); await engine.RunAsync(job, timeout.Token); await Verify(job); });
     await Test("no validator uses one stream", async () => { using var engine = new DownloadEngine(); var job = Job("/novalidator"); await engine.RunAsync(job, timeout.Token); Check(!job.SupportsRanges, "Unsafe ranges"); await Verify(job); });
@@ -56,8 +78,10 @@ try
         using (var engine = new DownloadEngine()) await engine.RunAsync(job, pause.Token);
         Check(job.Status == DownloadStatus.Paused && job.Downloaded > 0 && job.Downloaded < job.TotalBytes, "Pause did not retain partial progress");
         job = JsonSerializer.Deserialize<DownloadJob>(JsonSerializer.Serialize(job))!;
+        double pausedSeconds = job.ActiveSeconds; var firstStart = job.StartedAt;
         using (var engine = new DownloadEngine()) await engine.RunAsync(job, timeout.Token);
         await Verify(job);
+        Check(job.StartedAt == firstStart && job.FinishedAt.HasValue && job.ActiveSeconds > pausedSeconds, "Resume did not retain timing");
     });
     await Test("changed ETag refuses unsafe resume", async () =>
     {

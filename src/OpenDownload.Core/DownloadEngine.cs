@@ -8,6 +8,21 @@ public sealed class SourceChangedException(string message) : IOException(message
 public sealed class DownloadEngine : IDisposable
 {
     private readonly HttpClient client;
+    private readonly object nameLock = new();
+    private readonly HashSet<string> reservedNames = new(StringComparer.OrdinalIgnoreCase);
+    private void UpdateName(DownloadJob job, string name)
+    {
+        name = DownloadNames.Sanitize(name);
+        if (name == job.FileName) { lock (nameLock) reservedNames.Add(job.Destination); return; }
+        lock (nameLock)
+        {
+            string destination = DownloadNames.ReservePath(Path.GetDirectoryName(job.Destination)!, name, reservedNames);
+            string oldPart = job.PartialPath;
+            string newPart = destination + "." + job.Id + ".odpart";
+            if (File.Exists(oldPart)) File.Move(oldPart, newPart, false);
+            reservedNames.Add(destination); job.Destination = destination; job.FileName = Path.GetFileName(destination);
+        }
+    }
     public BandwidthLimiter Limiter { get; } = new();
     public DownloadEngine()
     {
@@ -82,12 +97,18 @@ public sealed class DownloadEngine : IDisposable
         job.Validator = validator;
         // Only split a file when we can prove all connections see the same version.
         job.SupportsRanges = ranged && validator != null;
+        job.ContentType = response.Content.Headers.ContentType?.MediaType;
+        if (job.AutoFileName && job.Downloaded == 0)
+            UpdateName(job, FileFormats.ResponseName(job.FileName, response.Content.Headers.ContentDisposition, job.ContentType));
     }
     public async Task RunAsync(DownloadJob job, CancellationToken cancellationToken, Func<Task>? checkpoint = null)
     {
         job.Error = null; job.Status = DownloadStatus.Connecting;
+        job.StartedAt ??= DateTimeOffset.Now; job.FinishedAt = null;
+        job.ActiveTimestamp = System.Diagnostics.Stopwatch.GetTimestamp();
         try
         {
+            if (File.Exists(job.Destination)) throw new IOException("The destination already exists. Choose a different name.");
             await ProbeAsync(job, cancellationToken);
             Directory.CreateDirectory(Path.GetDirectoryName(job.Destination)!);
             if (File.Exists(job.Destination)) throw new IOException("The destination already exists. Choose a different name.");
@@ -123,10 +144,18 @@ public sealed class DownloadEngine : IDisposable
             await Task.WhenAll(transfers);
             cancellationToken.ThrowIfCancellationRequested();
             if (job.TotalBytes.HasValue && job.Downloaded != job.TotalBytes) throw new IOException("File size did not match the server response.");
+            if (job.AutoFileName)
+            {
+                byte[] signature = new byte[32]; int count;
+                using (var image = File.OpenRead(job.PartialPath)) count = image.Read(signature);
+                if (FileFormats.ImageExtension(signature.AsSpan(0, count)) is string extension)
+                    UpdateName(job, Path.ChangeExtension(job.FileName, extension));
+            }
             await using (var input = new FileStream(job.PartialPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 job.Sha256 = Convert.ToHexString(await SHA256.HashDataAsync(input, cancellationToken)).ToLowerInvariant();
             if (checkpoint != null) await checkpoint();
             File.Move(job.PartialPath, job.Destination, false);
+            job.FinishedAt = DateTimeOffset.Now;
             job.Status = DownloadStatus.Completed;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { job.Status = DownloadStatus.Paused; }
@@ -138,7 +167,7 @@ public sealed class DownloadEngine : IDisposable
                 ? $"Server returned HTTP {(int)http.StatusCode}. The link may have expired or need authentication."
                 : "Transfer failed. Check your connection and retry; an expired link may need replacing.";
         }
-        finally { job.BytesPerSecond = 0; }
+        finally { double seconds = job.ActiveSeconds; job.ActiveTimestamp = null; job.ActiveSeconds = seconds; job.BytesPerSecond = 0; }
     }
     private async Task TransferWithRetryAsync(DownloadJob job, Segment segment, CancellationToken ct)
     {
@@ -206,6 +235,7 @@ public sealed class DownloadEngine : IDisposable
         if (job.Status is DownloadStatus.Downloading or DownloadStatus.Connecting) throw new InvalidOperationException("Pause the download first.");
         if (File.Exists(job.PartialPath)) File.Delete(job.PartialPath);
         job.Segments = []; job.TotalBytes = null; job.Validator = null; job.Error = null; job.Sha256 = null; job.Status = DownloadStatus.Queued;
+        job.StartedAt = null; job.FinishedAt = null; job.ActiveSeconds = 0; job.ActiveTimestamp = null;
     }
     public void Dispose() => client.Dispose();
 }

@@ -16,12 +16,14 @@ void Check(bool value, string name) { if (!value) throw new Exception(name); Con
 var job = new DownloadJob { Url = "https://example.invalid/file?secret=signed-test-link", FileName = "file.bin", Destination = Path.Combine(folder, "file.bin"), Status = DownloadStatus.Downloading,
     Segments = [new Segment { Start = 0, End = 9, Committed = 5 }], TotalBytes = 10, Headers = new Dictionary<string, string> { ["Authorization"] = "Bearer secret-test-token" } };
 var settings = new Settings { DownloadDirectory = folder, SpeedLimitKiB = 256, ScheduleEnabled = true, Layout = "Focus", LightTheme = true, CompactRows = true, GamingLimitKiB = 4096, PreviousSpeedLimitKiB = 1024 };
+job.StartedAt=DateTimeOffset.Now.AddMinutes(-3); job.ActiveSeconds=42;
 using (var store = new Store(folder))
 {
     store.Save([job], settings);
     var copy = store.Load().Single();
     Check(copy.Status == DownloadStatus.Paused && copy.Downloaded == 5, "active state recovers paused with committed offsets");
     Check(copy.Headers["Authorization"] == "Bearer secret-test-token" && copy.Url == job.Url, "DPAPI authentication and URL round trip");
+    Check(copy.StartedAt==job.StartedAt && copy.ActiveSeconds==42 && copy.ActiveTimestamp==null,"Download timing persists across app restart");
     Check(store.LoadSettings().DownloadDirectory == folder && store.LoadSettings().SpeedLimitKiB == 256, "settings persist");
     var preferences = store.LoadSettings(); Check(preferences.Layout == "Focus" && preferences.LightTheme && preferences.CompactRows && preferences.GamingLimitKiB == 4096 && preferences.PreviousSpeedLimitKiB == 1024, "layout, theme, density and gaming preferences persist");
 }

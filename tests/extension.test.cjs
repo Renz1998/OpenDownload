@@ -16,25 +16,26 @@ const chrome = {
   contextMenus: {removeAll: fn => fn(), create: () => {}, onClicked: on('context')},
   storage: {local: {get: async () => settings, set: async data => Object.assign(settings, data), remove: async key => {delete settings[key];}}},
   action: {setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {}},
-  downloads: {onCreated: on('created'), pause: async id => events.push(['pause', id]), cancel: async id => events.push(['cancel', id]), resume: async id => events.push(['resume', id])}
+  downloads: {onDeterminingFilename: on('determining'), pause: async id => events.push(['pause', id]), cancel: async id => events.push(['cancel', id]), resume: async id => events.push(['resume', id]), erase: async query => events.push(['erase', query.id])}
 };
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../browser-extension/background.js'), 'utf8'), {chrome, URL, Set, Error});
+async function capture(item) { await new Promise(resolve => assert.equal(listeners.determining(item, resolve), true)); }
 (async () => {
   listeners.installed();
   await listeners.context({menuItemId: 'download-link', linkUrl: 'https://example.com/file.zip'});
   assert.equal(transfers.length, 1); console.log('PASS extension context-menu handoff');
   await listeners.context({menuItemId: 'download-link', linkUrl: 'file:///C:/test'});
   assert.equal(transfers.length, 1); console.log('PASS extension rejects non-HTTP URLs');
-  await listeners.created({id: 1, url: 'https://example.com/file.zip'});
+  await capture({id: 1, url: 'https://example.com/file.zip'});
   assert.equal(events.length, 0); console.log('PASS automatic capture is off by default');
   settings.capture = true; settings.captureHosts = 'example.com';
-  await listeners.created({id: 2, url: 'https://other.example/file.zip'});
-  await listeners.created({id: 3, url: 'https://example.com/file.zip', incognito: true});
+  await capture({id: 2, url: 'https://other.example/file.zip'});
+  await capture({id: 3, url: 'https://example.com/file.zip', incognito: true});
   assert.equal(events.length, 0); console.log('PASS capture host filter and incognito exclusion');
-  await listeners.created({id: 4, url: 'https://example.com/file.zip'});
-  assert.deepEqual(events, [['pause', 4], ['cancel', 4]]); console.log('PASS accepted capture pauses then cancels browser transfer');
+  await capture({id: 4, url: 'https://example.com/file.zip'});
+  assert.deepEqual(events, [['pause', 4], ['cancel', 4], ['erase', 4]]); console.log('PASS accepted capture holds save, cancels transfer and erases only its cancelled history');
   nativeFails = true;
-  await listeners.created({id: 5, url: 'https://example.com/file.zip'});
+  await capture({id: 5, url: 'https://example.com/file.zip'});
   assert.deepEqual(events.slice(-2), [['pause', 5], ['resume', 5]]); console.log('PASS failed capture resumes original browser transfer');
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../browser-extension/manifest.json')));
   assert.equal(manifest.manifest_version, 3); assert.ok(!manifest.host_permissions); assert.ok(!manifest.permissions.includes('cookies'));

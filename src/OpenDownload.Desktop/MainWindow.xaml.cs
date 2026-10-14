@@ -78,7 +78,7 @@ public partial class MainWindow : Window
         }
         else if (!queuePaused && !quitting)
         {
-            foreach (var row in rows.Where(r => r.Job.Status == DownloadStatus.Queued && !running.ContainsKey(r.Job.Id)).ToArray())
+            foreach (var row in rows.Where(r => r.Job.Status == DownloadStatus.Queued && !running.ContainsKey(r.Job.Id) && !deleting.Contains(r.Job.Id)).ToArray())
             { if (running.Count >= settings.ConcurrentDownloads) break; Start(row); }
         }
         bool filterChanged = rows.Any(r => !previousStates.TryGetValue(r.Job.Id, out var previous) || previous != r.Job.Status);
@@ -124,8 +124,9 @@ public partial class MainWindow : Window
     {
         var uri = DownloadNames.ValidateUrl(req.Url);
         string name = DownloadNames.Sanitize(string.IsNullOrWhiteSpace(req.FileName) ? DownloadNames.FromUrl(uri) : req.FileName);
-        var destination = DownloadNames.ReservePath(directory, name, rows.Select(r => r.Job.Destination));
+        var destination = DownloadNames.ReservePath(directory, name, allJobs.Select(j => j.Destination));
         var job = new DownloadJob { Url = uri.AbsoluteUri, Destination = destination, FileName = Path.GetFileName(destination), Connections = settings.Connections,
+            AutoFileName = string.IsNullOrWhiteSpace(req.FileName) || req.SuggestedFileName,
             Referer = req.Referer, Status = queueOnly ? DownloadStatus.Paused : DownloadStatus.Queued };
         if (req.Headers != null)
             foreach (var h in req.Headers.Where(h => h.Key is "Authorization" or "Cookie" or "User-Agent"))
@@ -209,11 +210,12 @@ public partial class MainWindow : Window
         if (CurrentRow is DownloadRow row)
         {
             SelectionTitle.Text = row.FileName + " · " + row.Status; SelectionDetail.Text = row.Detail;
+            SelectionTiming.Text = row.Timing;
             SelectionProgress.Text = row.Received + " of " + row.Size + " · " + row.Remaining;
             SelectionResume.Text = row.Job.TotalBytes == null ? "Resume support is checked when the transfer starts." : row.Job.SupportsRanges ? $"Resume supported · {row.Job.Segments.Count} connection(s)" : "This server does not support validated resume. An interrupted transfer may need Restart.";
             SelectionHash.Text = row.Job.Sha256 == null ? "" : "Calculated SHA-256: " + row.Job.Sha256 + "\nCompare with the publisher’s checksum to verify authenticity.";
         }
-        else { SelectionTitle.Text = "Select a download to see its details"; SelectionDetail.Text = ""; SelectionHash.Text = ""; SelectionProgress.Text = ""; SelectionResume.Text = ""; }
+        else { SelectionTitle.Text = "Select a download to see its details"; SelectionDetail.Text = ""; SelectionHash.Text = ""; SelectionProgress.Text = ""; SelectionResume.Text = ""; SelectionTiming.Text = ""; }
         int count = Selected().Count(); BulkActions.Visibility = count > 1 ? Visibility.Visible : Visibility.Collapsed; SelectionCount.Text = $"{count} selected";
     }
     private void FolderClick(object sender, RoutedEventArgs e)
