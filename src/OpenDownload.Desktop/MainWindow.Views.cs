@@ -16,6 +16,10 @@ public partial class MainWindow
         FocusFilters.Visibility = focus ? Visibility.Visible : Visibility.Collapsed;
         Downloads.Visibility = focus ? Visibility.Collapsed : Visibility.Visible;
         FocusDownloads.Visibility = focus ? Visibility.Visible : Visibility.Collapsed;
+        DetailsPanel.Visibility = focus || settings.WorkbenchDetailsVisible ? Visibility.Visible : Visibility.Collapsed;
+        DetailsToggle.Visibility = focus ? Visibility.Collapsed : Visibility.Visible;
+        CloseDetailsButton.Visibility = focus ? Visibility.Collapsed : Visibility.Visible;
+        DetailsToggle.Content = settings.WorkbenchDetailsVisible ? "Hide details" : "Show details";
         DetailsColumn.Width = new GridLength(focus ? 280 : 0);
         Grid.SetColumn(DetailsPanel, focus ? 1 : 0); Grid.SetRow(DetailsPanel, focus ? 0 : 1);
         Grid.SetRowSpan(DetailsPanel, focus ? 2 : 1);
@@ -23,6 +27,16 @@ public partial class MainWindow
         DetailsPanel.MaxHeight = focus ? double.PositiveInfinity : 225;
         Downloads.RowHeight = settings.CompactRows ? 58 : 76;
         UpdateSelection(); UpdateEmptyState();
+    }
+    private void ToggleDetailsClick(object sender, RoutedEventArgs e)
+    {
+        settings.WorkbenchDetailsVisible = !settings.WorkbenchDetailsVisible;
+        ApplyLayout(); Save();
+        if (!settings.WorkbenchDetailsVisible) DetailsToggle.Focus();
+    }
+    private void CloseDetailsClick(object sender, RoutedEventArgs e)
+    {
+        settings.WorkbenchDetailsVisible = false; ApplyLayout(); Save(); DetailsToggle.Focus();
     }
     private void ChooseLayout()
     {

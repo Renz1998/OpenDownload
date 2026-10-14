@@ -28,6 +28,14 @@ public partial class MainWindow
             Theme.ApplyTitleBar(this); Check(Theme.TitleBarMatches(this),"Windows accepts the themed title bar: " + Theme.LastTitleBarResult.ToString("X8"));
             Check(BrowserIntegration.BrowserPage("Chrome",false)=="chrome://extensions/" && BrowserIntegration.BrowserPage("Edge",false)=="edge://extensions/","Browser navigation uses the correct extensions page");
             Check(((System.Windows.Media.SolidColorBrush)SelectionTitle.Foreground).Color == ((System.Windows.Media.SolidColorBrush)FindResource("Ink")).Color, "Dark theme details text matches readable foreground");
+            double expandedListHeight=ListPanel.ActualHeight;
+            CloseDetailsClick(this,new()); await Dispatcher.InvokeAsync(UpdateLayout,DispatcherPriority.ApplicationIdle);
+            Check(DetailsPanel.Visibility==Visibility.Collapsed && ListPanel.ActualHeight>expandedListHeight+100 && DetailsToggle.Content.ToString()=="Show details","Closing Workbench details gives its space to the download list");
+            SelectOne(rows[1]); Check(DetailsPanel.Visibility==Visibility.Collapsed,"Selecting another download leaves closed details hidden");
+            Check(!store.LoadSettings().WorkbenchDetailsVisible,"Workbench details visibility persists across settings reload");
+            settings.Layout="Focus"; ApplyLayout(); Check(DetailsPanel.Visibility==Visibility.Visible && DetailsToggle.Visibility==Visibility.Collapsed && CloseDetailsButton.Visibility==Visibility.Collapsed,"Focus details remain visible independently of Workbench preference");
+            settings.Layout="Workbench"; ApplyLayout(); ToggleDetailsClick(this,new()); SelectOne(rows[0]); await Dispatcher.InvokeAsync(UpdateLayout,DispatcherPriority.ApplicationIdle);
+            Check(DetailsPanel.Visibility==Visibility.Visible && store.LoadSettings().WorkbenchDetailsVisible,"Show details restores the panel and saves the preference");
             Capture("workbench.png");
             settings.Layout = "Focus"; ApplyLayout(); SelectOne(rows[0]); await Dispatcher.InvokeAsync(UpdateLayout, DispatcherPriority.ApplicationIdle);
             Check(FocusDownloads.Visibility == Visibility.Visible && LibrarySidebar.Visibility == Visibility.Collapsed && Grid.GetColumn(DetailsPanel) == 1, "Focus uses transfer cards and side details");

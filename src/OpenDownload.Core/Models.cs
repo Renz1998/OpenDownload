@@ -65,6 +65,7 @@ public sealed class Settings
     public string SpeedUnit { get; set; } = "MB/s";
     public bool CompletionNotifications { get; set; } = true;
     public bool LightTheme { get; set; }
+    public bool WorkbenchDetailsVisible { get; set; } = true;
     public bool CompactRows { get; set; }
     public int GamingLimitKiB { get; set; } = 5120;
     public int? PreviousSpeedLimitKiB { get; set; }
