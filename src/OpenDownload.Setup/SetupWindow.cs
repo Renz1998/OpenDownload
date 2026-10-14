@@ -8,7 +8,7 @@ public sealed class SetupWindow : Window
     public SetupWindow(string? destination, bool uninstall)
     {
         Style = (Style)Application.Current.FindResource(typeof(Window));
-        Title = uninstall ? "Uninstall OpenDownload" : "Install OpenDownload 0.2"; Width = 620; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        Title = uninstall ? "Uninstall OpenDownload" : "Install OpenDownload "+typeof(SetupWindow).Assembly.GetName().Version?.ToString(3); Width = 620; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; WindowStartupLocation = WindowStartupLocation.CenterScreen;
         var panel = new StackPanel { Margin = new Thickness(30) }; Content = panel;
         panel.Children.Add(new TextBlock { Text = uninstall ? "Remove OpenDownload" : "Your downloads. Your workspace.", FontSize = 26, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
         panel.Children.Add(new TextBlock { Text = uninstall ? "The application and its browser helper registration will be removed. Downloads, encrypted history and settings are kept." : "Workbench or Focus. Resumable downloads. A browser helper ready to connect. Installs for your Windows account without administrator rights.", TextWrapping = TextWrapping.Wrap, Foreground = (Brush)FindResource("Muted"), Margin = new Thickness(0, 12, 0, 22) });

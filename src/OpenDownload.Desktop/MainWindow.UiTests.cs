@@ -53,6 +53,33 @@ public partial class MainWindow
             var timed = new DownloadRow(new DownloadJob { StartedAt=DateTimeOffset.Now.AddMinutes(-2),FinishedAt=DateTimeOffset.Now,ActiveSeconds=90,Status=DownloadStatus.Completed });
             Check(timed.Timing.Contains("Started:") && timed.Timing.Contains("Finished:") && timed.Remaining.Contains("1m 30s"),"Completed downloads display timestamps and duration");
             settings.Layout = "Focus"; Save(); Check(store.LoadSettings().Layout == "Focus", "Layout selection persists");
+            var now=DateTimeOffset.Now;
+            var oldFinished=new DownloadRow(new DownloadJob { Added=now,FinishedAt=now.AddHours(-2) });
+            var recentlyFinished=new DownloadRow(new DownloadJob { Added=now.AddDays(-1),FinishedAt=now.AddHours(-1) });
+            Check(new DownloadComparer("Latest downloaded").Compare(recentlyFinished,oldFinished)<0,"Default sorting uses completion time instead of creation time");
+            SortPicker.SelectedItem="Name A-Z"; Check(store.LoadSettings().SortMode=="Name A-Z","Sorting choice persists for both layouts"); SortPicker.SelectedItem="Latest downloaded";
+            Check(DownloadRow.FormatSpeed(1_000_000,"MB/s")=="1.0 MB/s" && DownloadRow.FormatSpeed(1_000_000,"Mbps")=="8.0 Mbps","Speed display distinguishes megabytes from megabits");
+            var history=new SpeedHistory(); for(int i=0;i<100;i++) history.Add(i); Check(history.Samples.Count==60 && history.Peak==99,"Speed graph retains a bounded recent history");
+            var pngRow=AddJob(new BrowserRequest { Url="https://example.invalid/preview.png",FileName="preview.png" },App.DataDirectory,true); pngRow.Job.Status=DownloadStatus.Completed;
+            var bitmap=System.Windows.Media.Imaging.BitmapSource.Create(2,2,96,96,System.Windows.Media.PixelFormats.Bgra32,null,new byte[16],8);
+            var encoder=new System.Windows.Media.Imaging.PngBitmapEncoder(); encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+            using(var file=File.Create(pngRow.Job.Destination)) encoder.Save(file);
+            UpdatePreview(pngRow); Check(pngRow.Category=="Images" && SelectionPreview.Source!=null,"Completed image files have a category and a local preview");
+            UpdatePreview(null); File.Delete(pngRow.Job.Destination); allJobs.Remove(pngRow.Job); rows.Remove(pngRow); store.Remove(pngRow.Job.Id);
+            using(var window=new WindowCapture(new TransferActivityWindow(_=>{},_=>{})))
+            {
+                var activity=(TransferActivityWindow)window.Window; activity.Add(rows[0]); activity.Add(rows[1]); activity.Add(rows[0]);
+                await Dispatcher.InvokeAsync(()=>{},DispatcherPriority.ApplicationIdle);
+                Check(activity.Transfers.Count==2,"One activity window consolidates multiple transfers without duplicates");
+            }
+            bool opened=false;
+            using(var window=new WindowCapture(new CompletionNotification(rows[0],()=>opened=true,()=>{})))
+            {
+                FindButtons(window.Window).Single(b=>b.Content?.ToString()=="Open file").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Check(opened,"Completion notification exposes an actionable Open file button");
+            }
+            RecordBrowserStatus(true,true); UpdateLibraryActivity(); Check(LiveBrowserStatus.Content.ToString()!.Contains("needs attention"),"Recent browser handoff failures are visible");
+            RecordBrowserStatus(true,false); UpdateLibraryActivity(); Check(LiveBrowserStatus.Content.ToString()!.Contains("capture on"),"Live browser connection reports capture state");
             var promptRow=AddJob(new BrowserRequest { Url="https://example.invalid/example.PNG",FileName="example.PNG" },App.DataDirectory,true); promptRow.Job.AwaitingDestination=true;
             _=Dispatcher.BeginInvoke(new Action(()=>
             {

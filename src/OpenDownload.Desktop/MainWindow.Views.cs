@@ -82,7 +82,7 @@ public partial class MainWindow
     {
         var menu = new ContextMenu();
         void Add(string title, RoutedEventHandler handler) { var item = new MenuItem { Header = title }; item.Click += handler; menu.Items.Add(item); }
-        Add("Advanced details", DetailsClick); Add("Update download link", ReplaceClick); Add("Restart incomplete download…", RestartClick);
+        Add("Open downloaded file",OpenFileClick); Add("Advanced details", DetailsClick); Add("Update download link", ReplaceClick); Add("Restart incomplete download…", RestartClick);
         menu.Items.Add(new Separator()); Add("Remove from list — keep files", RemoveClick); Add("Remove and delete files...", DeleteClick); Add("Clear completed entries", ClearClick);
         Add("Restore removed entries", (_, _) =>
         {
@@ -103,5 +103,5 @@ public partial class MainWindow
     { foreach (var row in removed) { row.Job.Hidden = false; rows.Add(row); } removed.Clear(); Save(); UpdateEmptyState(); ShowNotice("Entries restored."); }
     private void DefaultFolderClick(object sender, RoutedEventArgs e)
     { Directory.CreateDirectory(settings.DownloadDirectory); Process.Start(new ProcessStartInfo("explorer.exe") { UseShellExecute = true, ArgumentList = { settings.DownloadDirectory } }); }
-    public void RecordBrowserCheck() { settings.BrowserCheckedAt = DateTimeOffset.Now; UpdateSettingsLabels(); Save(); }
+    public void RecordBrowserCheck(bool capture=false) { RecordBrowserStatus(capture,false); settings.BrowserCheckedAt = DateTimeOffset.Now; UpdateSettingsLabels(); Save(); }
 }

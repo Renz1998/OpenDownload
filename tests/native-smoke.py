@@ -59,6 +59,11 @@ try:
     print("PASS oversized native message rejected")
     assert desktop.poll() is None, "Desktop exited unexpectedly"
     print("PASS published self-contained desktop remains running")
+    assert request({"action":"browser-status","extensionId":"oagdmhfnjjcidibdhafcbjmfmaeaojam","captureEnabled":True}).get("ok")
+    print("PASS live browser heartbeat reaches the desktop")
+    desktop.terminate(); desktop.wait(timeout=10)
+    assert not request({"action":"browser-status","extensionId":"oagdmhfnjjcidibdhafcbjmfmaeaojam"}).get("ok")
+    print("PASS status-only heartbeat does not reopen an exited desktop")
 finally:
     # Terminate only the exact child processes created by this test.
     desktop.terminate(); desktop.wait(timeout=10)

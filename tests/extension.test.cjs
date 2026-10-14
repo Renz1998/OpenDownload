@@ -9,6 +9,7 @@ let settings = {};
 let nativeFails = false;
 const on = key => ({addListener: fn => {listeners[key] = fn;}});
 const chrome = {
+  alarms: {get: async () => undefined, create: async () => {}, onAlarm: on("alarm")},
   runtime: {id: 'test-extension', onInstalled: on('installed'), onMessage: on('message'), sendNativeMessage: async (host, data) => {
     assert.equal(host, 'org.opendownload.app'); transfers.push(data);
     if (nativeFails) throw new Error('Native host unavailable'); return {ok: true};
@@ -46,5 +47,9 @@ async function capture(item) { await new Promise(resolve => assert.equal(listene
   const appPaths = fs.readFileSync(path.join(__dirname,'../src/OpenDownload.Core/AppPaths.cs'),'utf8');
   assert.equal(actualId,identity.extensionId); assert.ok(appPaths.includes('ExtensionId = "'+actualId+'"'));
   console.log('PASS stable extension key matches app and installer origin');
-  console.log('8 extension tests passed.');
+  nativeFails = false; settings.capture = true; settings.lastError = 'Previous handoff failed';
+  await listeners.alarm({name:'opendownload-status'});
+  assert.equal(transfers.at(-1).action,'browser-status'); assert.equal(transfers.at(-1).captureEnabled,true); assert.equal(transfers.at(-1).handoffError,true);
+  console.log('PASS browser heartbeat reports capture and failed-handoff state');
+  console.log('9 extension tests passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

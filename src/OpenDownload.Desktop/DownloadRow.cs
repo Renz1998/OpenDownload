@@ -7,6 +7,19 @@ public sealed class DownloadRow(DownloadJob job) : INotifyPropertyChanged
 {
     public DownloadJob Job { get; } = job;
     public string FileName => Job.FileName;
+    public string SpeedUnit { get; set; } = "MB/s";
+    public bool CanPause => Job.Status is DownloadStatus.Downloading or DownloadStatus.Connecting;
+    public bool CanResume => !Job.AwaitingDestination && Job.Status is DownloadStatus.Paused or DownloadStatus.Failed;
+    public bool IsCompleted => Job.Status==DownloadStatus.Completed;
+    public string FileIconGeometry => Category switch
+    {
+        "Images"=>"M2,3 L22,3 22,21 2,21 Z M2,17 L8,10 13,15 17,11 22,17 M16,7 L17,7",
+        "Video"=>"M2,3 L22,3 22,21 2,21 Z M9,7 L17,12 9,17 Z",
+        "Music"=>"M9,18 L9,4 21,2 21,16 M9,6 L21,4 M3,18 A3,2 0 1 0 9,18 A3,2 0 1 0 3,18 M15,16 A3,2 0 1 0 21,16 A3,2 0 1 0 15,16",
+        "Archives"=>"M4,2 L20,2 20,22 4,22 Z M10,3 L14,3 M10,7 L14,7 M10,11 L14,11 M10,15 L14,15 14,19 10,19 Z",
+        "AI models"=>"M5,5 L19,5 19,19 5,19 Z M9,9 L15,9 15,15 9,15 Z M8,1 L8,5 M16,1 L16,5 M8,19 L8,23 M16,19 L16,23 M1,8 L5,8 M1,16 L5,16 M19,8 L23,8 M19,16 L23,16",
+        _=>"M4,2 L15,2 21,8 21,22 4,22 Z M15,2 L15,8 21,8 M8,12 L17,12 M8,16 L17,16"
+    };
     public string Category => Job.Category;
     public string Status => Job.Status == DownloadStatus.Failed ? "Needs attention" : Job.Status == DownloadStatus.Downloading && Job.TotalBytes > 0 && Job.Downloaded == Job.TotalBytes ? "Checking file" : Job.Status.ToString();
     public string Source => Uri.TryCreate(Job.Url, UriKind.Absolute, out var uri) ? uri.Host : "";
@@ -17,7 +30,9 @@ public sealed class DownloadRow(DownloadJob job) : INotifyPropertyChanged
     public string Received => FormatBytes(Job.Downloaded);
     public double Progress => Job.TotalBytes > 0 ? Job.Downloaded * 100d / Job.TotalBytes.Value : Job.Status == DownloadStatus.Completed ? 100 : 0;
     public string Percentage => $"{Progress:0.0}%";
-    public string Speed => Job.BytesPerSecond > 0 ? FormatBytes((long)Job.BytesPerSecond) + "/s" : "—";
+    public string Speed => Job.BytesPerSecond > 0 ? FormatSpeed(Job.BytesPerSecond,SpeedUnit) : "Idle";
+    public static string FormatSpeed(double bytes,string unit) => unit switch
+    { "Mbps"=>$"{bytes*8/1_000_000:0.0} Mbps", "MiB/s"=>$"{bytes/1_048_576:0.0} MiB/s", _=>$"{bytes/1_000_000:0.0} MB/s" };
     public string Remaining
     {
         get

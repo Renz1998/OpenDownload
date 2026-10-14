@@ -15,6 +15,8 @@ public sealed class BrowserRequest
     public string? Referer { get; set; }
     public Dictionary<string, string>? Headers { get; set; }
     public string? ExtensionId { get; set; }
+    public bool CaptureEnabled { get; set; }
+    public bool HandoffError { get; set; }
 }
 public partial class App : Application
 {
@@ -74,7 +76,8 @@ public partial class App : Application
                 bool accepted = false;
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    if (req.Action == "ping") { if (req.ExtensionId == AppPaths.ExtensionId) window.RecordBrowserCheck(); accepted = true; }
+                    if (req.Action == "ping") { if (req.ExtensionId == AppPaths.ExtensionId) window.RecordBrowserCheck(req.CaptureEnabled); accepted = true; }
+                    else if (req.Action == "browser-status") { if(req.ExtensionId==AppPaths.ExtensionId) { window.RecordBrowserStatus(req.CaptureEnabled,req.HandoffError); accepted=true; } }
                     else if (req.Action == "show") { window.ShowFromRequest(); accepted = true; }
                     else if (req.Action == "exit-for-update") { accepted = true; _ = window.ExitForUpdateAsync(); }
                     else

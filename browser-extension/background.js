@@ -7,9 +7,11 @@ function validUrl(value) {
 }
 async function send(request) {
   request.extensionId = chrome.runtime.id;
-  if (request.action !== 'ping' && !validUrl(request.url)) throw new Error('Enter an HTTP or HTTPS download URL.');
+  if (!['ping', 'browser-status'].includes(request.action) && !validUrl(request.url)) throw new Error('Enter an HTTP or HTTPS download URL.');
+  if (request.action !== 'browser-status') { const settings = await chrome.storage.local.get(['capture']); request.captureEnabled = !!settings.capture; }
   const reply = await chrome.runtime.sendNativeMessage(HOST, request);
   if (!reply?.ok) throw new Error(reply?.error || 'OpenDownload could not accept this download.');
+  if (request.action === 'ping') await chrome.storage.local.remove('lastError');
   return reply;
 }
 chrome.runtime.onInstalled.addListener(() => {
@@ -64,4 +66,12 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
     } finally { if (claimed) pending.delete(item.id); suggest(); }
   })();
   return true;
+});
+
+// A status-only heartbeat never launches the desktop app after the user has exited it.
+chrome.alarms.get('opendownload-status').then(alarm => { if (!alarm) chrome.alarms.create('opendownload-status', {periodInMinutes: 0.5}); });
+chrome.alarms.onAlarm.addListener(async alarm => {
+  if (alarm.name !== 'opendownload-status') return;
+  const data = await chrome.storage.local.get(['capture', 'lastError']);
+  try { await send({action: 'browser-status', captureEnabled: !!data.capture, handoffError: !!data.lastError}); } catch { /* No desktop app running: leave it closed. */ }
 });

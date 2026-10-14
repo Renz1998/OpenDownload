@@ -21,7 +21,7 @@ try
         {
             using var doc = JsonDocument.Parse(payload);
             string action = doc.RootElement.TryGetProperty("action", out var a) ? a.GetString() ?? "" : "download";
-            if (action != "ping")
+            if (action is not ("ping" or "browser-status"))
             {
                 var url = doc.RootElement.GetProperty("url").GetString();
                 if (url?.Length > 16384 || !Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https") || uri.UserInfo.Length != 0) throw new IOException("Invalid URL");
@@ -31,6 +31,7 @@ try
             try { await pipe.ConnectAsync(500, timeout.Token); }
             catch (TimeoutException)
             {
+                if(action=="browser-status") throw new IOException("Desktop is not running");
                 var app = Path.Combine(AppContext.BaseDirectory, "OpenDownload.Desktop.exe");
                 if (!File.Exists(app)) app = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "desktop", "OpenDownload.Desktop.exe"));
                 if (!File.Exists(app)) throw new IOException("Desktop app is missing");

@@ -46,6 +46,7 @@ public sealed class DownloadJob
     [JsonIgnore] public string Category => Path.GetExtension(FileName).ToLowerInvariant() switch
     {
         ".safetensors" or ".gguf" or ".ckpt" or ".pt" => "AI models",
+        ".png" or ".jpg" or ".jpeg" or ".gif" or ".webp" or ".avif" or ".bmp" or ".tif" or ".tiff" or ".svg" => "Images",
         ".mp4" or ".mkv" or ".webm" or ".mov" or ".avi" => "Video",
         ".mp3" or ".wav" or ".flac" or ".ogg" => "Music",
         ".zip" or ".7z" or ".rar" or ".gz" => "Archives",
@@ -60,6 +61,9 @@ public sealed class Settings
     public int LayoutDefaultVersion { get; set; }
     public Dictionary<string,string> TypeFolders { get; set; } = [];
     public bool ShowProgressWindow { get; set; } = true;
+    public string SortMode { get; set; } = "Latest downloaded";
+    public string SpeedUnit { get; set; } = "MB/s";
+    public bool CompletionNotifications { get; set; } = true;
     public bool LightTheme { get; set; }
     public bool CompactRows { get; set; }
     public int GamingLimitKiB { get; set; } = 5120;

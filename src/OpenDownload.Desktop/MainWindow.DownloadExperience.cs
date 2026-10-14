@@ -7,7 +7,7 @@ namespace OpenDownload.Desktop;
 public partial class MainWindow
 {
     private readonly Queue<DownloadRow> destinationPrompts=[];
-    private readonly Dictionary<string,ProgressDialog> progressWindows=[];
+    private TransferActivityWindow? activityWindow;
     private bool promptingDestination;
     private void QueueDestinationPrompt(DownloadRow row)
     {
@@ -49,9 +49,15 @@ public partial class MainWindow
     }
     private void ShowTransferWindow(DownloadRow row)
     {
-        if(!settings.ShowProgressWindow || progressWindows.ContainsKey(row.Job.Id) || Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE")=="1") return;
-        var dialog=new ProgressDialog(row,()=>Pause(row),()=> { if(!running.ContainsKey(row.Job.Id)) { row.Job.Status=DownloadStatus.Queued; queuePaused=false; Tick(); } }) { Owner=this };
-        progressWindows[row.Job.Id]=dialog; dialog.Closed+=(_,_)=>progressWindows.Remove(row.Job.Id); dialog.Show();
+        if(!settings.ShowProgressWindow || Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE")=="1") return;
+        if(activityWindow==null)
+        {
+            activityWindow=new TransferActivityWindow(r=>Pause(r),r=> { if(!running.ContainsKey(r.Job.Id)) { r.Job.Status=OpenDownload.Core.DownloadStatus.Queued; queuePaused=false; Tick(); } }) { Owner=this };
+            activityWindow.Closed+=(_,_)=>activityWindow=null;
+            foreach(var active in rows.Where(r=>running.ContainsKey(r.Job.Id))) activityWindow.Add(active);
+            activityWindow.Show();
+        }
+        activityWindow.Add(row);
     }
     private void UpdateTaskbarProgress()
     {

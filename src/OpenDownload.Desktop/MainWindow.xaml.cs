@@ -38,6 +38,7 @@ public partial class MainWindow : Window
         engine.Limiter.LimitKiB = () => settings.SpeedLimitKiB;
         Downloads.ItemsSource = rows;
         FocusDownloads.ItemsSource = rows;
+        InitializeLibrary();
         CollectionViewSource.GetDefaultView(rows).Filter = MatchesFilter;
         tray = new System.Windows.Forms.NotifyIcon { Text = "OpenDownload", Icon = new System.Drawing.Icon(Application.GetResourceStream(new Uri("BrandIcon.ico", UriKind.Relative)).Stream), Visible = true };
         var menu = new System.Windows.Forms.ContextMenuStrip();
@@ -70,7 +71,7 @@ public partial class MainWindow : Window
         {
             long value = row.Job.Downloaded;
             row.Job.BytesPerSecond = row.Job.Status == DownloadStatus.Downloading ? Math.Max(0, value - lastBytes.GetValueOrDefault(row.Job.Id, value)) / seconds : 0;
-            lastBytes[row.Job.Id] = value; row.Refresh();
+            lastBytes[row.Job.Id] = value; row.SpeedUnit=settings.SpeedUnit; row.Refresh();
         }
         if (!settings.AllowedNow(DateTime.Now))
         {
@@ -87,8 +88,8 @@ public partial class MainWindow : Window
         if (running.Count > 0) Save();
         if (filterChanged) CollectionViewSource.GetDefaultView(rows).Refresh();
         UpdateSelection(); UpdateEmptyState();
-        UpdateTaskbarProgress();
-        Summary.Text = $"{rows.Count} downloads · {running.Count} active · {DownloadRow.FormatBytes((long)rows.Sum(r => r.Job.BytesPerSecond))}/s";
+        UpdateTaskbarProgress(); UpdateLibraryActivity();
+        Summary.Text = $"{rows.Count} downloads · {running.Count} active · {DownloadRow.FormatSpeed(rows.Sum(r => r.Job.BytesPerSecond),settings.SpeedUnit)}";
         ScheduleStatus.Text = settings.ScheduleEnabled ? settings.AllowedNow(DateTime.Now) ? "Schedule: active" : "Schedule: waiting" : "Schedule: off";
     }
     private bool Save()
@@ -111,8 +112,8 @@ public partial class MainWindow : Window
         running.Remove(row.Job.Id); cts.Dispose();
         if (row.Job.Status == DownloadStatus.Paused && settings.ScheduleEnabled && !settings.AllowedNow(DateTime.Now) && !queuePaused && !quitting) row.Job.Status = DownloadStatus.Queued;
         if (row.Job.Status == DownloadStatus.Completed)
-        { tray.BalloonTipTitle = "Download complete"; tray.BalloonTipText = row.FileName; tray.ShowBalloonTip(3000); }
-        Save(); row.Refresh();
+        { NotifyCompleted(row); }
+        Save(); row.Refresh(); CollectionViewSource.GetDefaultView(rows).Refresh();
     }
     private IEnumerable<DownloadRow> Selected() => settings.Layout == "Focus" ? FocusDownloads.SelectedItems.Cast<DownloadRow>().ToArray() : Downloads.SelectedItems.Cast<DownloadRow>().ToArray();
     private DownloadRow? CurrentRow => settings.Layout == "Focus" ? FocusDownloads.SelectedItem as DownloadRow : Downloads.SelectedItem as DownloadRow;
@@ -138,6 +139,7 @@ public partial class MainWindow : Window
     }
     public void ReceiveBrowserRequest(BrowserRequest req)
     {
+        if(req.ExtensionId==AppPaths.ExtensionId) RecordBrowserStatus(req.CaptureEnabled,false);
         string name=string.IsNullOrWhiteSpace(req.FileName) ? DownloadNames.FromUrl(DownloadNames.ValidateUrl(req.Url)) : req.FileName;
         bool prompt=Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE")!="1" && !settings.TypeFolders.ContainsKey(DownloadFolders.TypeKey(name));
         var row=AddJob(req,DownloadFolders.ForType(settings,name),prompt);
@@ -217,13 +219,14 @@ public partial class MainWindow : Window
     {
         if (CurrentRow is DownloadRow row)
         {
+            UpdatePreview(row);
             SelectionTitle.Text = row.FileName + " · " + row.Status; SelectionDetail.Text = row.Detail;
             SelectionTiming.Text = row.Timing;
             SelectionProgress.Text = row.Received + " of " + row.Size + " · " + row.Remaining;
             SelectionResume.Text = row.Job.TotalBytes == null ? "Resume support is checked when the transfer starts." : row.Job.SupportsRanges ? $"Resume supported · {row.Job.Segments.Count} connection(s)" : "This server does not support validated resume. An interrupted transfer may need Restart.";
             SelectionHash.Text = row.Job.Sha256 == null ? "" : "Calculated SHA-256: " + row.Job.Sha256 + "\nCompare with the publisher’s checksum to verify authenticity.";
         }
-        else { SelectionTitle.Text = "Select a download to see its details"; SelectionDetail.Text = ""; SelectionHash.Text = ""; SelectionProgress.Text = ""; SelectionResume.Text = ""; SelectionTiming.Text = ""; }
+        else { UpdatePreview(null); SelectionTitle.Text = "Select a download to see its details"; SelectionDetail.Text = ""; SelectionHash.Text = ""; SelectionProgress.Text = ""; SelectionResume.Text = ""; SelectionTiming.Text = ""; }
         int count = Selected().Count(); BulkActions.Visibility = count > 1 ? Visibility.Visible : Visibility.Collapsed; SelectionCount.Text = $"{count} selected";
     }
     private void FolderClick(object sender, RoutedEventArgs e)
@@ -254,6 +257,6 @@ public partial class MainWindow : Window
     {
         if (quitting) return; quitting = true; timer.Stop(); PauseAll();
         await Task.WhenAll(running.Values.Select(v => v.Task).ToArray());
-        Save(); var trayIcon = tray.Icon; tray.Dispose(); trayIcon?.Dispose(); store.Dispose(); engine.Dispose(); Close(); Application.Current.Shutdown();
+        Save(); completionNotice?.Close(); var trayIcon = tray.Icon; tray.Dispose(); trayIcon?.Dispose(); store.Dispose(); engine.Dispose(); Close(); Application.Current.Shutdown();
     }
 }
