@@ -48,12 +48,12 @@ public partial class MainWindow
             settings.BrowserCheckedAt=null; browserSeen=null; UpdateBrowserConnectionUi();
             Check(BrowserConnectBanner.Visibility==Visibility.Visible && LiveBrowserStatus.Content.ToString()=="Connect your browser","Focus exposes an obvious first-time browser connection action");
             RecordBrowserCheck(); UpdateBrowserConnectionUi();
-            Check(BrowserConnectBanner.Visibility==Visibility.Visible && FocusBrowserButton.Content.ToString()=="Check browser connection" && FocusBrowserButton.Style==FindResource("QuietButton"),"Focus keeps a quiet check button and instructions after connection");
-            browserSeen=null; UpdateBrowserConnectionUi(); Check(BrowserConnectBanner.Visibility==Visibility.Visible && FocusBrowserButton.Content.ToString()=="Check browser connection","Focus keeps connection check and instructions available while the browser is offline");
+            Check(BrowserConnectBanner.Visibility==Visibility.Collapsed && LiveBrowserStatus.Visibility==Visibility.Visible && CompactBrowserInstructions.Visibility==Visibility.Visible && LiveBrowserStatus.Style==FindResource("QuietButton"),"Successful setup collapses into compact connection and setup buttons");
+            browserSeen=null; UpdateBrowserConnectionUi(); Check(BrowserConnectBanner.Visibility==Visibility.Collapsed && LiveBrowserStatus.Visibility==Visibility.Visible,"Previously connected browsers keep compact controls without expanding the panel");
             bool checkSuccess=await CheckBrowserConnectionAsync(()=> { RecordBrowserCheck(); return Task.CompletedTask; },TimeSpan.FromMilliseconds(300));
             Check(checkSuccess && !browserConnectionFailed,"Connection checks require a fresh extension response");
             checkSuccess=await CheckBrowserConnectionAsync(()=>Task.CompletedTask,TimeSpan.FromMilliseconds(20));
-            Check(!checkSuccess && browserConnectionFailed && FocusBrowserButton.Content.ToString()=="Connect your browser","Failed checks restore the connection action instead of accepting an old check timestamp");
+            Check(!checkSuccess && browserConnectionFailed && BrowserConnectBanner.Visibility==Visibility.Visible && FocusBrowserButton.Content.ToString()=="Connect your browser","Failed checks restore the connection action instead of accepting an old check timestamp");
             RecordBrowserCheck(); UpdateBrowserConnectionUi();
             var firstFocusRow=(DownloadRow)FocusDownloads.Items[0]; FocusDownloads.ScrollIntoView(firstFocusRow); await Dispatcher.InvokeAsync(UpdateLayout,DispatcherPriority.ApplicationIdle);
             var focusItem=(ListBoxItem)FocusDownloads.ItemContainerGenerator.ContainerFromItem(firstFocusRow);

@@ -15,7 +15,7 @@ public partial class MainWindow
             while(DateTimeOffset.UtcNow<deadline)
             {
                 if(settings.BrowserCheckedAt is DateTimeOffset response && response>began)
-                { browserConnectionFailed=false; ShowNotice("Browser connection confirmed. Your browser responded to this check."); return true; }
+                { browserConnectionFailed=false; return true; }
                 await Task.Delay(100);
             }
         }

@@ -52,7 +52,7 @@ public partial class MainWindow
         bool ready=connectedBefore && !attention;
         string action=checkingBrowser ? "Checking connection..." : ready ? "Check browser connection" : "Connect your browser";
         string title=attention ? "Browser connection needs attention" : live ? "Browser connected" : connectedBefore ? "Check your browser connection" : "Connect your browser";
-        BrowserConnectBanner.Visibility=settings.Layout=="Focus" ? Visibility.Visible : Visibility.Collapsed;
+        BrowserConnectBanner.Visibility=settings.Layout=="Focus" && !ready ? Visibility.Visible : Visibility.Collapsed;
         BrowserConnectBanner.Background=(Brush)FindResource(ready ? "Surface" : "Selected");
         BrowserConnectBanner.BorderBrush=(Brush)FindResource(ready ? "Line" : "Accent");
         BrowserConnectTitle.Text=title;
@@ -60,7 +60,8 @@ public partial class MainWindow
         FocusBrowserButton.Content=action; FocusBrowserButton.IsEnabled=!checkingBrowser;
         FocusBrowserButton.Style=(Style)FindResource(ready ? "QuietButton" : "PrimaryButton");
         LiveBrowserStatus.Content=action; LiveBrowserStatus.IsEnabled=!checkingBrowser;
-        LiveBrowserStatus.Visibility=settings.Layout=="Focus" ? Visibility.Collapsed : Visibility.Visible;
+        LiveBrowserStatus.Visibility=settings.Layout=="Focus" && !ready ? Visibility.Collapsed : Visibility.Visible;
+        CompactBrowserInstructions.Visibility=settings.Layout=="Focus" && ready ? Visibility.Visible : Visibility.Collapsed;
         LiveBrowserStatus.Style=(Style)FindResource(ready ? "QuietButton" : "PrimaryButton");
         BrowserStatus.Content=action; BrowserStatus.IsEnabled=!checkingBrowser;
         FocusBrowserButton.ToolTip=LiveBrowserStatus.ToolTip="Run a fresh browser connection check. If it fails, the setup instructions reopen.";
