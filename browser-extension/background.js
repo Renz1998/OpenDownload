@@ -49,9 +49,18 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
     try {
       const {capture = false, captureHosts = ''} = await chrome.storage.local.get(['capture', 'captureHosts']);
       const url = item.finalUrl || item.url;
-      if (!capture || item.incognito || !validUrl(url) || pending.has(item.id)) return;
+      if (!capture || item.incognito || pending.has(item.id)) return;
+      if (!validUrl(url)) {
+        await chrome.storage.local.set({captureNote: 'This download uses a browser-only address. It stays in your browser. Try right-clicking the image and choosing Download with OpenDownload.'});
+        return;
+      }
       const hosts = captureHosts.split(/[\s,]+/).filter(Boolean).map(s => s.toLowerCase());
-      if (hosts.length && !hosts.includes(new URL(url).hostname.toLowerCase())) return;
+      // Sites often download from a separate CDN; match the initiating site as well.
+      const sources = [url, item.url, item.referrer].filter(validUrl);
+      if (hosts.length && !sources.some(source => hosts.includes(new URL(source).hostname.toLowerCase()))) {
+        await chrome.storage.local.set({captureNote: 'This download is outside your selected websites. Clear the website list to capture downloads from all sites.'});
+        return;
+      }
       pending.add(item.id); claimed = true;
       await chrome.downloads.pause(item.id); paused = true;
       await send({action: 'download', url, fileName: item.filename ? item.filename.split(/[\\/]/).pop() : undefined, suggestedFileName: true, referer: item.referrer});
@@ -59,7 +68,7 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
       await chrome.downloads.cancel(item.id);
       // This is the cancelled browser transfer's history only, never an existing downloaded file.
       try { await chrome.downloads.erase({id: item.id}); } catch { /* Cancellation already succeeded. */ }
-      await chrome.storage.local.remove('lastError');
+      await chrome.storage.local.remove(['lastError', 'captureNote']);
     } catch (error) {
       if (!accepted && paused) { try { await chrome.downloads.resume(item.id); } catch { } }
       await chrome.storage.local.set({lastError: accepted ? 'OpenDownload accepted the file, but Chrome could not cancel its paused transfer. Cancel it in Chrome to avoid a duplicate.' : error.message});

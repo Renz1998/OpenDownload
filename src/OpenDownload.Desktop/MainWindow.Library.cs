@@ -41,10 +41,22 @@ public partial class MainWindow
     private void UpdateLibraryActivity()
     {
         double speed=rows.Sum(r=>r.Job.BytesPerSecond); speedHistory.Add(speed); RenderSpeedChart();
+        UpdateBrowserConnectionUi();
+    }
+    private void UpdateBrowserConnectionUi()
+    {
         bool live=browserSeen.HasValue && DateTimeOffset.Now-browserSeen.Value<TimeSpan.FromSeconds(90);
-        LiveBrowserStatus.Content=live ? browserHandoffError ? "Browser: handoff needs attention" : browserCapture ? "Browser: connected, capture on" : "Browser: connected, capture off" : "Browser: check connection";
-        BrowserStatus.Content=live ? browserHandoffError ? "Browser error" : "Browser connected" : "Connect browser";
-        LiveBrowserStatus.ToolTip=live ? "Your extension responded recently. Click for setup or troubleshooting." : "No recent response from the extension. Chrome may be closed or the extension may need reloading. Click to check.";
+        bool attention=live && browserHandoffError;
+        bool connectedBefore=live || settings.BrowserCheckedAt.HasValue;
+        bool showConnect=settings.Layout=="Focus" && (!connectedBefore || attention);
+        var bannerVisibility=showConnect ? Visibility.Visible : Visibility.Collapsed;
+        if(BrowserConnectBanner.Visibility!=bannerVisibility) { BrowserConnectBanner.Visibility=bannerVisibility; if(showConnect) Motion.Reveal(BrowserConnectBanner); }
+        BrowserConnectHint.Text=attention ? "Your browser could not send a download. Click Connect your browser to check the setup." : "Connect Chrome or Edge once. Click Connect your browser to see the steps.";
+        LiveBrowserStatus.Content=live ? attention ? "Browser needs attention" : browserCapture ? "Browser connected · capture on" : "Browser connected" : connectedBefore ? "Browser offline" : "Connect your browser";
+        LiveBrowserStatus.Style=(Style)FindResource(connectedBefore && !attention ? "QuietButton" : "PrimaryButton");
+        BrowserStatus.Content=live ? attention ? "Browser needs attention" : "Browser connected" : connectedBefore ? "Browser offline" : "Connect your browser";
+        LiveBrowserStatus.ToolTip=live ? "Connected to your browser. Click to view setup or troubleshoot." : connectedBefore ? "Open your browser and the connection will refresh. Click here if you need help." : "Click to connect Chrome or Edge. The setup guide walks you through each step.";
+
     }
     private void RenderSpeedChart()
     {

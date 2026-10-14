@@ -245,7 +245,25 @@ public partial class MainWindow : Window
         row.Job.Status = DownloadStatus.Paused; Save(); row.Refresh();
     }
     private void DetailsClick(object sender, RoutedEventArgs e) { if (CurrentRow is DownloadRow row) new ProgressDialog(row) { Owner = this }.Show(); }
-    private void DownloadDoubleClick(object sender, MouseButtonEventArgs e) => DetailsClick(sender, new RoutedEventArgs());
+    private void DownloadDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if(sender is not ItemsControl list || e.OriginalSource is not DependencyObject source) return;
+        var row=DownloadActivationRow(list,source); if(row==null) return;
+        e.Handled=true;
+        if(!row.IsCompleted) { ShowNotice("This file is still downloading or paused. Open it when the download finishes."); return; }
+        if(!File.Exists(row.Job.Destination)) { ShowNotice("This file has moved or been deleted. Use Open folder to check its location."); return; }
+        OpenDownloadedFile(row);
+    }
+    internal static DownloadRow? DownloadActivationRow(ItemsControl list,DependencyObject source)
+    {
+        for(var node=source;node!=null && node!=list;node=node is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D ? System.Windows.Media.VisualTreeHelper.GetParent(node) : LogicalTreeHelper.GetParent(node))
+        {
+            if(node is System.Windows.Controls.Primitives.ButtonBase or System.Windows.Controls.Primitives.ScrollBar or System.Windows.Controls.Primitives.DataGridColumnHeader) return null;
+            if(node is DataGridRow gridRow) return gridRow.Item as DownloadRow;
+            if(node is ListBoxItem item) return item.Content as DownloadRow;
+        }
+        return null;
+    }
     private async void WindowClosing(object? sender, CancelEventArgs e)
     {
         if (quitting) return;

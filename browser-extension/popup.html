@@ -2,7 +2,7 @@
 <body><h1><img src="icons/icon-32.png" width="28" height="28" alt="" style="vertical-align:middle;margin-right:8px">OpenDownload</h1><p class="sub">Send a link to your desktop download queue.</p>
 <label for="url">Download URL</label><input id="url" type="url" placeholder="https://example.com/file.zip">
 <button id="download">Download</button><button id="test" class="secondary">Check connection</button>
-<hr><label class="check"><input id="capture" type="checkbox"> Automatically capture browser downloads</label>
-<label for="hosts">Limit capture to these hosts (optional)</label><input id="hosts" placeholder="example.com, downloads.example.org">
-<p class="sub">Capture is off by default. Signed-in downloads may need a token or cookie entered in the desktop app. Protected streams are not supported.</p>
+<hr><label class="check"><input id="capture" type="checkbox"> Use OpenDownload when I click a website's Download button</label>
+<label for="hosts">Only capture these websites or file servers (optional)</label><input id="hosts" placeholder="Leave empty for all websites">
+<p class="sub">To take over website Download buttons, turn on the checkbox above. Leave the website list empty for all websites, or enter names such as pinterest.com, www.pinterest.com. Browser-only blob downloads stay in the browser. Signed-in downloads may need a token or cookie entered in the desktop app. Protected streams are not supported.</p>
 <p id="status" role="status"></p><script src="popup.js"></script></body></html>

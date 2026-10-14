@@ -40,6 +40,15 @@ public partial class MainWindow
             settings.Layout = "Focus"; ApplyLayout(); SelectOne(rows[0]); await Dispatcher.InvokeAsync(UpdateLayout, DispatcherPriority.ApplicationIdle);
             Check(FocusDownloads.Visibility == Visibility.Visible && LibrarySidebar.Visibility == Visibility.Collapsed && Grid.GetColumn(DetailsPanel) == 1, "Focus uses transfer cards and side details");
             Check(GlobalSettingsButton.IsVisible,"Focus exposes Settings in the shared header");
+            settings.BrowserCheckedAt=null; browserSeen=null; UpdateBrowserConnectionUi();
+            Check(BrowserConnectBanner.Visibility==Visibility.Visible && LiveBrowserStatus.Content.ToString()=="Connect your browser","Focus exposes an obvious first-time browser connection action");
+            RecordBrowserCheck(); UpdateBrowserConnectionUi();
+            Check(BrowserConnectBanner.Visibility==Visibility.Collapsed && LiveBrowserStatus.Style==FindResource("QuietButton"),"Connected browser setup becomes a quiet status instead of a banner");
+            browserSeen=null; UpdateBrowserConnectionUi(); Check(BrowserConnectBanner.Visibility==Visibility.Collapsed && LiveBrowserStatus.Content.ToString()=="Browser offline","Closing the browser does not bring back first-time setup");
+            var firstFocusRow=(DownloadRow)FocusDownloads.Items[0]; FocusDownloads.ScrollIntoView(firstFocusRow); await Dispatcher.InvokeAsync(UpdateLayout,DispatcherPriority.ApplicationIdle);
+            var focusItem=(ListBoxItem)FocusDownloads.ItemContainerGenerator.ContainerFromItem(firstFocusRow);
+            Check(DownloadActivationRow(FocusDownloads,focusItem)==firstFocusRow && DownloadActivationRow(FocusDownloads,FindVisualButtons(focusItem).First())==null,"Double-click targets the download card and excludes action buttons");
+
             rows[0].Job.Status=DownloadStatus.Downloading; UpdateTaskbarProgress();
             Check(TaskbarItemInfo.ProgressState==System.Windows.Shell.TaskbarItemProgressState.Normal && Math.Abs(TaskbarItemInfo.ProgressValue-0.65)<0.001,"Taskbar progress follows received bytes");
             rows[0].Job.Status=DownloadStatus.Connecting; UpdateTaskbarProgress();
@@ -127,12 +136,18 @@ public partial class MainWindow
             await ExitAsync();
         }
         catch (Exception ex) { Directory.CreateDirectory(output); File.WriteAllText(Path.Combine(output, "ui-failure.txt"), ex.ToString()); await ExitAsync(); Environment.Exit(1); }
-        void Capture(string name) { UpdateLayout(); GuidePictures.Save(Content as System.Windows.Media.Visual ?? this, (int)ActualWidth, (int)ActualHeight, Path.Combine(output, name)); }
+        void Capture(string name) { ListPanel.BeginAnimation(UIElement.OpacityProperty,null); DetailsPanel.BeginAnimation(UIElement.OpacityProperty,null); BrowserConnectBanner.BeginAnimation(UIElement.OpacityProperty,null); UpdateLayout(); GuidePictures.Save(Content as System.Windows.Media.Visual ?? this, (int)ActualWidth, (int)ActualHeight, Path.Combine(output, name)); }
     }
     private sealed class BindingErrorListener : TraceListener
     { public List<string> Errors { get; } = []; public override void Write(string? message) { if (message?.Contains("Error:") == true) Errors.Add(message); } public override void WriteLine(string? message) => Write(message); }
     private sealed class WindowCapture : IDisposable
     { public Window Window { get; } public WindowCapture(Window window) { Window = window; window.Show(); } public void Dispose() => Window.Close(); }
+    private static IEnumerable<Button> FindVisualButtons(DependencyObject root)
+    {
+        if(root is Button button) yield return button;
+        for(int i=0;i<System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);i++)
+            foreach(var child in FindVisualButtons(System.Windows.Media.VisualTreeHelper.GetChild(root,i))) yield return child;
+    }
     private static IEnumerable<Button> FindButtons(DependencyObject root)
     {
         if (root is Button button) yield return button;

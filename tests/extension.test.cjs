@@ -15,7 +15,7 @@ const chrome = {
     if (nativeFails) throw new Error('Native host unavailable'); return {ok: true};
   }},
   contextMenus: {removeAll: fn => fn(), create: () => {}, onClicked: on('context')},
-  storage: {local: {get: async () => settings, set: async data => Object.assign(settings, data), remove: async key => {delete settings[key];}}},
+  storage: {local: {get: async () => settings, set: async data => Object.assign(settings, data), remove: async key => {for(const entry of Array.isArray(key) ? key : [key]) delete settings[entry];}}},
   action: {setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {}},
   downloads: {onDeterminingFilename: on('determining'), pause: async id => events.push(['pause', id]), cancel: async id => events.push(['cancel', id]), resume: async id => events.push(['resume', id]), erase: async query => events.push(['erase', query.id])}
 };
@@ -38,6 +38,17 @@ async function capture(item) { await new Promise(resolve => assert.equal(listene
   nativeFails = true;
   await capture({id: 5, url: 'https://example.com/file.zip'});
   assert.deepEqual(events.slice(-2), [['pause', 5], ['resume', 5]]); console.log('PASS failed capture resumes original browser transfer');
+  nativeFails = false; settings.captureHosts = 'www.pinterest.com';
+  await capture({id: 6, url: 'https://i.pinimg.com/originals/example.jpg', referrer: 'https://www.pinterest.com/pin/example/'});
+  assert.equal(transfers.at(-1).url, 'https://i.pinimg.com/originals/example.jpg');
+  assert.deepEqual(events.slice(-3), [['pause', 6], ['cancel', 6], ['erase', 6]]);
+  console.log('PASS website capture includes its separate image CDN through the download referrer');
+  await capture({id: 7, url: 'blob:https://www.pinterest.com/example', referrer: 'https://www.pinterest.com/'});
+  assert.ok(settings.captureNote.includes('browser-only')); assert.ok(!events.some(event => event[1]===7));
+  console.log('PASS browser-only downloads stay in the browser with an explanation');
+  await capture({id: 8, url: 'https://unrelated.example/image.jpg', referrer: 'https://unrelated.example/'});
+  assert.ok(settings.captureNote.includes('outside')); assert.ok(!events.some(event => event[1]===8));
+  console.log('PASS unrelated sites remain excluded with an explanation');
   const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../browser-extension/manifest.json')));
   assert.equal(manifest.manifest_version, 3); assert.ok(!manifest.host_permissions); assert.ok(!manifest.permissions.includes('cookies'));
   console.log('PASS MV3 manifest has no broad website or cookie permissions');
@@ -51,5 +62,5 @@ async function capture(item) { await new Promise(resolve => assert.equal(listene
   await listeners.alarm({name:'opendownload-status'});
   assert.equal(transfers.at(-1).action,'browser-status'); assert.equal(transfers.at(-1).captureEnabled,true); assert.equal(transfers.at(-1).handoffError,true);
   console.log('PASS browser heartbeat reports capture and failed-handoff state');
-  console.log('9 extension tests passed.');
+  console.log('12 extension tests passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

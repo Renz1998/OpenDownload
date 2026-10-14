@@ -10,6 +10,8 @@ public partial class MainWindow
     private void ApplyLayout()
     {
         bool focus = settings.Layout == "Focus";
+        bool changingLayout=FocusDownloads.Visibility != (focus ? Visibility.Visible : Visibility.Collapsed);
+        bool showingDetails=DetailsPanel.Visibility!=Visibility.Visible && (focus || settings.WorkbenchDetailsVisible);
         LayoutButton.Content = (focus ? "Focus" : "Workbench") + " ▾";
         LibrarySidebar.Visibility = focus ? Visibility.Collapsed : Visibility.Visible;
         SidebarColumn.Width = new GridLength(focus ? 0 : 185);
@@ -26,7 +28,9 @@ public partial class MainWindow
         DetailsPanel.Margin = focus ? new Thickness(18, 0, 0, 0) : new Thickness(0, 18, 0, 0);
         DetailsPanel.MaxHeight = focus ? double.PositiveInfinity : 225;
         Downloads.RowHeight = settings.CompactRows ? 58 : 76;
-        UpdateSelection(); UpdateEmptyState();
+        UpdateSelection(); UpdateEmptyState(); UpdateBrowserConnectionUi();
+        if(changingLayout) Motion.Reveal(ListPanel);
+        if(showingDetails) Motion.Reveal(DetailsPanel);
     }
     private void ToggleDetailsClick(object sender, RoutedEventArgs e)
     {
@@ -112,7 +116,7 @@ public partial class MainWindow
     }
     private void BulkMoreClick(object sender, RoutedEventArgs e) { var menu = MoreMenu(); menu.PlacementTarget = (Button)sender; menu.IsOpen = true; }
     private void ShowNotice(string message, bool undo = false)
-    { Notice.Text = message; UndoButton.Visibility = undo ? Visibility.Visible : Visibility.Collapsed; NoticeBar.Visibility = Visibility.Visible; }
+    { Notice.Text = message; UndoButton.Visibility = undo ? Visibility.Visible : Visibility.Collapsed; NoticeBar.Visibility = Visibility.Visible; Motion.Reveal(NoticeBar); }
     private void UndoClick(object sender, RoutedEventArgs e)
     { foreach (var row in removed) { row.Job.Hidden = false; rows.Add(row); } removed.Clear(); Save(); UpdateEmptyState(); ShowNotice("Entries restored."); }
     private void DefaultFolderClick(object sender, RoutedEventArgs e)
