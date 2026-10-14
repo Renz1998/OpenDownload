@@ -17,6 +17,7 @@ public sealed class DownloadJob
     public string Url { get; set; } = "";
     public string FileName { get; set; } = "";
     public bool AutoFileName { get; set; } = true;
+    public bool AwaitingDestination { get; set; }
     public string? ContentType { get; set; }
     public string Destination { get; set; } = "";
     public DownloadStatus Status { get; set; } = DownloadStatus.Queued;
@@ -55,13 +56,16 @@ public sealed class DownloadJob
 }
 public sealed class Settings
 {
-    public string? Layout { get; set; }
+    public string? Layout { get; set; } = "Focus";
+    public int LayoutDefaultVersion { get; set; }
+    public Dictionary<string,string> TypeFolders { get; set; } = [];
+    public bool ShowProgressWindow { get; set; } = true;
     public bool LightTheme { get; set; }
     public bool CompactRows { get; set; }
     public int GamingLimitKiB { get; set; } = 5120;
     public int? PreviousSpeedLimitKiB { get; set; }
     public DateTimeOffset? BrowserCheckedAt { get; set; }
-    public string DownloadDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "OpenDownload");
+    public string DownloadDirectory { get; set; } = DownloadFolders.Default;
     public int Connections { get; set; } = 4;
     public int ConcurrentDownloads { get; set; } = 2;
     public int SpeedLimitKiB { get; set; }

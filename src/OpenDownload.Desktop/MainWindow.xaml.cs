@@ -29,8 +29,9 @@ public partial class MainWindow : Window
     private string category = "All downloads";
     public MainWindow()
     {
-        InitializeComponent();
+        InitializeComponent(); VersionLabel.Text="  "+typeof(App).Assembly.GetName().Version?.ToString(3);
         store = new Store(App.DataDirectory); settings = store.LoadSettings();
+        if(settings.LayoutDefaultVersion<1) { settings.Layout="Focus"; settings.LayoutDefaultVersion=1; Save(); }
         Theme.Apply(settings.LightTheme);
         allJobs.AddRange(store.Load());
         foreach (var job in allJobs.Where(j => !j.Hidden)) rows.Add(new DownloadRow(job));
@@ -42,7 +43,7 @@ public partial class MainWindow : Window
         var menu = new System.Windows.Forms.ContextMenuStrip();
         menu.Items.Add("Show OpenDownload", null, (_, _) => Dispatcher.Invoke(ShowWindow));
         menu.Items.Add("Pause all downloads", null, (_, _) => Dispatcher.Invoke(PauseAll));
-        menu.Items.Add("Resume queue", null, (_, _) => Dispatcher.Invoke(() => { queuePaused = false; foreach (var row in rows.Where(r => r.Job.Status == DownloadStatus.Paused)) row.Job.Status = DownloadStatus.Queued; Tick(); }));
+        menu.Items.Add("Resume queue", null, (_, _) => Dispatcher.Invoke(() => { queuePaused = false; foreach (var row in rows.Where(r => r.Job.Status == DownloadStatus.Paused)) { if(row.Job.AwaitingDestination) QueueDestinationPrompt(row); else row.Job.Status = DownloadStatus.Queued; } Tick(); }));
         menu.Items.Add("Exit", null, (_, _) => Dispatcher.Invoke(async () => await ExitAsync()));
         tray.ContextMenuStrip = menu; tray.DoubleClick += (_, _) => Dispatcher.Invoke(ShowWindow);
         timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) }; timer.Tick += (_, _) => Tick(); timer.Start();
@@ -78,7 +79,7 @@ public partial class MainWindow : Window
         }
         else if (!queuePaused && !quitting)
         {
-            foreach (var row in rows.Where(r => r.Job.Status == DownloadStatus.Queued && !running.ContainsKey(r.Job.Id) && !deleting.Contains(r.Job.Id)).ToArray())
+            foreach (var row in rows.Where(r => r.Job.Status == DownloadStatus.Queued && !r.Job.AwaitingDestination && !running.ContainsKey(r.Job.Id) && !deleting.Contains(r.Job.Id)).ToArray())
             { if (running.Count >= settings.ConcurrentDownloads) break; Start(row); }
         }
         bool filterChanged = rows.Any(r => !previousStates.TryGetValue(r.Job.Id, out var previous) || previous != r.Job.Status);
@@ -86,6 +87,7 @@ public partial class MainWindow : Window
         if (running.Count > 0) Save();
         if (filterChanged) CollectionViewSource.GetDefaultView(rows).Refresh();
         UpdateSelection(); UpdateEmptyState();
+        UpdateTaskbarProgress();
         Summary.Text = $"{rows.Count} downloads · {running.Count} active · {DownloadRow.FormatBytes((long)rows.Sum(r => r.Job.BytesPerSecond))}/s";
         ScheduleStatus.Text = settings.ScheduleEnabled ? settings.AllowedNow(DateTime.Now) ? "Schedule: active" : "Schedule: waiting" : "Schedule: off";
     }
@@ -99,6 +101,7 @@ public partial class MainWindow : Window
         var cts = new CancellationTokenSource(); row.Job.Status = DownloadStatus.Connecting;
         var task = RunAndFinishAsync(row, cts);
         running[row.Job.Id] = (cts, task);
+        ShowTransferWindow(row);
     }
     private async Task RunAndFinishAsync(DownloadRow row, CancellationTokenSource cts)
     {
@@ -120,7 +123,7 @@ public partial class MainWindow : Window
         foreach (var request in dialog.Requests) AddJob(request, dialog.DirectoryPath, dialog.QueueOnly);
         Save(); Tick();
     }
-    private void AddJob(BrowserRequest req, string directory, bool queueOnly = false)
+    private DownloadRow AddJob(BrowserRequest req, string directory, bool queueOnly = false)
     {
         var uri = DownloadNames.ValidateUrl(req.Url);
         string name = DownloadNames.Sanitize(string.IsNullOrWhiteSpace(req.FileName) ? DownloadNames.FromUrl(uri) : req.FileName);
@@ -131,18 +134,23 @@ public partial class MainWindow : Window
         if (req.Headers != null)
             foreach (var h in req.Headers.Where(h => h.Key is "Authorization" or "Cookie" or "User-Agent"))
                 if (h.Value.Length <= 32768 && !h.Value.Contains('\r') && !h.Value.Contains('\n')) job.Headers[h.Key] = h.Value;
-        allJobs.Add(job); rows.Add(new DownloadRow(job));
+        var row=new DownloadRow(job); allJobs.Add(job); rows.Add(row); return row;
     }
     public void ReceiveBrowserRequest(BrowserRequest req)
     {
-        AddJob(req, settings.DownloadDirectory);
+        string name=string.IsNullOrWhiteSpace(req.FileName) ? DownloadNames.FromUrl(DownloadNames.ValidateUrl(req.Url)) : req.FileName;
+        bool prompt=Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE")!="1" && !settings.TypeFolders.ContainsKey(DownloadFolders.TypeKey(name));
+        var row=AddJob(req,DownloadFolders.ForType(settings,name),prompt);
+        row.Job.AwaitingDestination=prompt;
         if (!Save()) { allJobs.Remove(rows[^1].Job); rows.RemoveAt(rows.Count - 1); throw new IOException("Cannot persist download request."); }
         ShowWindow(); Tick();
+        if(prompt) QueueDestinationPrompt(row);
     }
     private void ResumeClick(object sender, RoutedEventArgs e)
     {
         queuePaused = false;
-        foreach (var row in Selected().Where(r => !running.ContainsKey(r.Job.Id) && r.Job.Status != DownloadStatus.Completed)) row.Job.Status = DownloadStatus.Queued;
+        foreach (var row in Selected().Where(r => !running.ContainsKey(r.Job.Id) && r.Job.Status != DownloadStatus.Completed))
+        { if(row.Job.AwaitingDestination) QueueDestinationPrompt(row); else row.Job.Status = DownloadStatus.Queued; }
         Tick();
     }
     private void PauseClick(object sender, RoutedEventArgs e)

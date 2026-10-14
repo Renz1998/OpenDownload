@@ -16,6 +16,9 @@ void Check(bool value, string name) { if (!value) throw new Exception(name); Con
 var job = new DownloadJob { Url = "https://example.invalid/file?secret=signed-test-link", FileName = "file.bin", Destination = Path.Combine(folder, "file.bin"), Status = DownloadStatus.Downloading,
     Segments = [new Segment { Start = 0, End = 9, Committed = 5 }], TotalBytes = 10, Headers = new Dictionary<string, string> { ["Authorization"] = "Bearer secret-test-token" } };
 var settings = new Settings { DownloadDirectory = folder, SpeedLimitKiB = 256, ScheduleEnabled = true, Layout = "Focus", LightTheme = true, CompactRows = true, GamingLimitKiB = 4096, PreviousSpeedLimitKiB = 1024 };
+Check(new Settings().Layout=="Focus" && new Settings().DownloadDirectory==DownloadFolders.Default,"Fresh installs use Focus and the Windows Downloads known folder");
+DownloadFolders.Remember(settings,"image.PNG",Path.Combine(folder,"pictures"));
+Check(DownloadFolders.ForType(settings,"other.png")==Path.Combine(folder,"pictures") && DownloadFolders.ForType(settings,"other.jpg")==folder,"Remembered destinations apply to one extension only");
 job.StartedAt=DateTimeOffset.Now.AddMinutes(-3); job.ActiveSeconds=42;
 using (var store = new Store(folder))
 {
@@ -25,6 +28,7 @@ using (var store = new Store(folder))
     Check(copy.Headers["Authorization"] == "Bearer secret-test-token" && copy.Url == job.Url, "DPAPI authentication and URL round trip");
     Check(copy.StartedAt==job.StartedAt && copy.ActiveSeconds==42 && copy.ActiveTimestamp==null,"Download timing persists across app restart");
     Check(store.LoadSettings().DownloadDirectory == folder && store.LoadSettings().SpeedLimitKiB == 256, "settings persist");
+    Check(store.LoadSettings().TypeFolders[".png"]==Path.Combine(folder,"pictures"),"Remembered file-type folders survive restart");
     var preferences = store.LoadSettings(); Check(preferences.Layout == "Focus" && preferences.LightTheme && preferences.CompactRows && preferences.GamingLimitKiB == 4096 && preferences.PreviousSpeedLimitKiB == 1024, "layout, theme, density and gaming preferences persist");
 }
 string contents = System.Text.Encoding.UTF8.GetString(File.ReadAllBytes(Path.Combine(folder, "downloads.db")));

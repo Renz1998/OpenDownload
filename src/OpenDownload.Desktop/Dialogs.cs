@@ -16,7 +16,7 @@ internal static class DialogUi
     {
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 14, 0, 0) };
         var cancel = new Button { Content = "Cancel", IsCancel = true }; cancel.Click += (_, _) => window.Close();
-        var save = new Button { Content = action, IsDefault = true, Background = System.Windows.Media.Brushes.Honeydew }; save.Click += (_, _) => apply();
+        var save = new Button { Content = action, IsDefault = true, Style=(Style)window.FindResource("PrimaryButton") }; save.Click += (_, _) => apply();
         buttons.Children.Add(cancel); buttons.Children.Add(save); panel.Children.Add(buttons);
     }
     public static StackPanel Setup(Window window, string title, double width)
@@ -44,6 +44,24 @@ public sealed class AddDialog : Window
         var browse = new Button { Content = "Browse…", HorizontalAlignment = HorizontalAlignment.Left, IsEnabled = !replace };
         browse.Click += (_, _) => { using var picker = new System.Windows.Forms.FolderBrowserDialog { InitialDirectory = directory.Text }; if (picker.ShowDialog() == System.Windows.Forms.DialogResult.OK) directory.Text = picker.SelectedPath; };
         panel.Children.Add(browse);
+        var rememberFolder = DialogUi.Check(panel,"Always save this file type here (single URL only)",false);
+        bool folderEdited=false, updatingFolder=false;
+        directory.TextChanged+=(_,_)=> { if(!updatingFolder) folderEdited=true; };
+        void SuggestFolder()
+        {
+            var entries=urls.Text.Split(['\r','\n'],StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+            try
+            {
+                string fileName=entries.Length==1 ? string.IsNullOrWhiteSpace(name.Text) ? DownloadNames.FromUrl(DownloadNames.ValidateUrl(entries[0])) : name.Text : "";
+                string type=DownloadFolders.TypeKey(fileName);
+                rememberFolder.IsEnabled=!replace && entries.Length==1 && type.Length>0;
+                rememberFolder.Content=type.Length>0 ? "Always save "+type+" files here" : "Always save this file type here (enter one URL first)";
+                if(!folderEdited && !replace) { updatingFolder=true; directory.Text=DownloadFolders.ForType(settings,fileName); updatingFolder=false; }
+            }
+            catch(ArgumentException) { rememberFolder.IsEnabled=false; }
+        }
+        rememberFolder.IsEnabled=false; urls.TextChanged+=(_,_)=>SuggestFolder(); name.TextChanged+=(_,_)=>SuggestFolder();
+
         var queue = DialogUi.Check(panel, "Add paused — start with Resume", false);
         var advanced = new Expander { Header = "Authentication (optional)", Margin = new Thickness(0, 10, 0, 0) };
         var inner = new StackPanel(); advanced.Content = inner; panel.Children.Add(advanced);
@@ -64,6 +82,12 @@ public sealed class AddDialog : Window
                     Headers = new Dictionary<string, string>() }).ToList();
                 if (auth.Password.Length > 0) Requests[0].Headers!["Authorization"] = auth.Password;
                 if (cookie.Password.Length > 0) Requests[0].Headers!["Cookie"] = cookie.Password;
+                if(rememberFolder.IsChecked==true)
+                {
+                    if(Requests.Count!=1) throw new ArgumentException("Remembering a file-type folder requires one URL.");
+                    string fileName=string.IsNullOrWhiteSpace(name.Text) ? DownloadNames.FromUrl(new Uri(Requests[0].Url)) : name.Text;
+                    DownloadFolders.Remember(settings,fileName,DirectoryPath);
+                }
                 QueueOnly = queue.IsChecked == true; DialogResult = true;
             }
             catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException)
@@ -86,6 +110,21 @@ public sealed class OptionsDialog : Window
         DialogUi.Label(panel, "Concurrent downloads (1–8)"); var concurrent = DialogUi.Input(panel, current.ConcurrentDownloads.ToString());
         DialogUi.Label(panel, "Global speed limit in KiB/s (0 = unlimited)"); var speed = DialogUi.Input(panel, current.SpeedLimitKiB.ToString());
         DialogUi.Label(panel, "Gaming mode shared cap in KiB/s"); var gaming = DialogUi.Input(panel, current.GamingLimitKiB.ToString());
+        var progressPopup=DialogUi.Check(panel,"Show a progress window when a download starts",current.ShowProgressWindow);
+        var editedRules=new Dictionary<string,string>(current.TypeFolders);
+        var rulePanel=new StackPanel(); DialogUi.Label(panel,"Remembered file-type folders"); panel.Children.Add(rulePanel);
+        if(editedRules.Count==0) DialogUi.Label(rulePanel,"No remembered folders. Choose Always save this file type here in a download prompt.");
+        foreach(var pair in current.TypeFolders)
+        {
+            var line=new WrapPanel(); rulePanel.Children.Add(line);
+            line.Children.Add(new TextBlock { Text=pair.Key,Width=65,VerticalAlignment=VerticalAlignment.Center });
+            var value=new TextBox { Text=pair.Value,Width=275,Margin=new Thickness(0,4,4,4) }; line.Children.Add(value);
+            value.TextChanged+=(_,_)=>editedRules[pair.Key]=value.Text;
+            var pick=new Button { Content="Browse",Padding=new Thickness(8,6,8,6) }; line.Children.Add(pick);
+            pick.Click+=(_,_)=> { using var picker=new System.Windows.Forms.FolderBrowserDialog { InitialDirectory=value.Text }; if(picker.ShowDialog()==System.Windows.Forms.DialogResult.OK) value.Text=picker.SelectedPath; };
+            var forget=new Button { Content="Forget",Padding=new Thickness(8,6,8,6) }; line.Children.Add(forget);
+            forget.Click+=(_,_)=> { editedRules.Remove(pair.Key); line.Visibility=Visibility.Collapsed; };
+        }
         var compact = DialogUi.Check(panel, "Compact Workbench rows", current.CompactRows);
         var schedule = DialogUi.Check(panel, "Run queued downloads only during a daily time window", current.ScheduleEnabled);
         DialogUi.Label(panel, "Start time (24-hour HH:mm, local time)"); var start = DialogUi.Input(panel, TimeSpan.FromMinutes(current.ScheduleStartMinute).ToString(@"hh\:mm"));
@@ -100,9 +139,10 @@ public sealed class OptionsDialog : Window
                 if (!TimeSpan.TryParseExact(start.Text, @"hh\:mm", null, out var begin) || !TimeSpan.TryParseExact(stop.Text, @"hh\:mm", null, out var end) || begin.TotalHours >= 24 || end.TotalHours >= 24) throw new ArgumentException("Enter times as HH:mm, from 00:00 to 23:59.");
                 if (!Path.IsPathFullyQualified(directory.Text)) throw new ArgumentException("Choose an absolute download folder.");
                 Directory.CreateDirectory(directory.Text);
+                if(editedRules.Values.Any(value=>!Path.IsPathFullyQualified(value))) throw new ArgumentException("Use an absolute path for every remembered folder.");
                 Result = new Settings { DownloadDirectory = Path.GetFullPath(directory.Text), Connections = c, ConcurrentDownloads = n, SpeedLimitKiB = s, ScheduleEnabled = schedule.IsChecked == true,
                     ScheduleStartMinute = (int)begin.TotalMinutes, ScheduleEndMinute = (int)end.TotalMinutes, MinimizeToTray = tray.IsChecked == true,
-                    Layout = current.Layout, LightTheme = current.LightTheme, CompactRows = compact.IsChecked == true, GamingLimitKiB = g, BrowserCheckedAt = current.BrowserCheckedAt };
+                    Layout = current.Layout, LayoutDefaultVersion=current.LayoutDefaultVersion,TypeFolders=editedRules.ToDictionary(pair=>pair.Key,pair=>Path.GetFullPath(pair.Value)),ShowProgressWindow=progressPopup.IsChecked==true, PreviousSpeedLimitKiB=current.PreviousSpeedLimitKiB, LightTheme = current.LightTheme, CompactRows = compact.IsChecked == true, GamingLimitKiB = g, BrowserCheckedAt = current.BrowserCheckedAt };
                 DialogResult = true;
             }
             catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException) { MessageBox.Show(this, ex.Message, "Check options"); }
@@ -111,17 +151,23 @@ public sealed class OptionsDialog : Window
 }
 public sealed class ProgressDialog : Window
 {
-    public ProgressDialog(DownloadRow row)
+    public ProgressDialog(DownloadRow row, Action? pause = null, Action? resume = null)
     {
         var panel = DialogUi.Setup(this, "Download details", 650);
         var title = new TextBlock { Text = row.FileName, FontSize = 20, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap }; panel.Children.Add(title);
         var bar = new ProgressBar { Height = 24, Margin = new Thickness(0, 18, 0, 12), Maximum = 100 }; panel.Children.Add(bar);
         var info = new TextBlock { TextWrapping = TextWrapping.Wrap }; panel.Children.Add(info);
         var segments = new TextBlock { FontFamily = new System.Windows.Media.FontFamily("Consolas"), Margin = new Thickness(0, 16, 0, 0) }; panel.Children.Add(segments);
+        var controls=new WrapPanel(); panel.Children.Add(controls);
+        var pauseButton=new Button { Content="Pause",IsEnabled=pause!=null }; pauseButton.Click+=(_,_)=>pause?.Invoke(); controls.Children.Add(pauseButton);
+        var resumeButton=new Button { Content="Resume",IsEnabled=resume!=null }; resumeButton.Click+=(_,_)=>resume?.Invoke(); controls.Children.Add(resumeButton);
+        var close=new Button { Content="Close progress window" }; close.Click+=(_,_)=>Close(); controls.Children.Add(close);
+        DialogUi.Label(panel,"Closing this window keeps the download running. Pause stops its transfer.");
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         void Update()
         {
-            bar.Value = row.Progress;
+            title.Text=row.FileName; bar.Value = row.Progress;
+            pauseButton.IsEnabled=pause!=null && row.Job.Status is DownloadStatus.Downloading or DownloadStatus.Connecting; resumeButton.IsEnabled=resume!=null && row.Job.Status is DownloadStatus.Paused or DownloadStatus.Failed;
             info.Text = $"{row.Status} · {row.Received} of {row.Size}\n{row.Speed} · Remaining {row.Remaining}\n\n{row.Detail}\n\n{row.Timing}";
             segments.Text = string.Join("\n", row.Job.Segments.Select((s, i) => $"Connection {i + 1}: {DownloadRow.FormatBytes(s.Committed)}"));
         }

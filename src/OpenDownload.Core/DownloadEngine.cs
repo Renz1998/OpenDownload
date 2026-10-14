@@ -205,6 +205,17 @@ public sealed class DownloadEngine : IDisposable
         output.Position = offset;
         byte[] buffer = new byte[128 * 1024];
         long remaining = job.TotalBytes.HasValue ? segment.Length - segment.Committed : long.MaxValue;
+        long pendingCommit = 0;
+        long checkpointClock = System.Diagnostics.Stopwatch.GetTimestamp();
+        void FlushCheckpoint()
+        {
+            if (pendingCommit == 0) return;
+            output.Flush(true);
+            Interlocked.Add(ref segment.Committed, pendingCommit); pendingCommit = 0;
+            checkpointClock = System.Diagnostics.Stopwatch.GetTimestamp();
+        }
+        try
+        {
         while (remaining > 0)
         {
             using var readTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -217,11 +228,13 @@ public sealed class DownloadEngine : IDisposable
             }
             await Limiter.WaitAsync(count, ct);
             await output.WriteAsync(buffer.AsMemory(0, count), ct);
-            // Persisted segment offsets must never describe bytes still only in a stream buffer.
-            output.Flush(true);
-            Interlocked.Add(ref segment.Committed, count);
+            // Publish offsets only after a durable flush, batching small writes to reduce disk stalls.
+            pendingCommit += count;
             remaining -= count;
+            if (pendingCommit >= 4 * 1024 * 1024 || System.Diagnostics.Stopwatch.GetElapsedTime(checkpointClock).TotalMilliseconds >= 250) FlushCheckpoint();
         }
+        }
+        finally { FlushCheckpoint(); }
         if (job.TotalBytes.HasValue)
         {
             using var readTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);

@@ -102,7 +102,7 @@ public static class Installation
             if (!testMode)
             {
                 string cache = Path.Combine(AppPaths.DataFolder(target), "installer"); Directory.CreateDirectory(cache);
-                string cachedSetup = Path.Combine(cache, "OpenDownload.Setup-0.2.3.exe");
+                string cachedSetup = Path.Combine(cache, "OpenDownload.Setup-0.3.0.exe");
                 string currentExe = Environment.ProcessPath ?? throw new IOException("Cannot locate this installer.");
                 if (!Path.GetFullPath(currentExe).Equals(Path.GetFullPath(cachedSetup), StringComparison.OrdinalIgnoreCase)) File.Copy(currentExe, cachedSetup, true);
                 foreach (var browser in Browsers)
@@ -113,7 +113,7 @@ public static class Installation
                 }
                 using (var key = Registry.CurrentUser.CreateSubKey(UninstallKey))
                 {
-                    key.SetValue("DisplayName", "OpenDownload"); key.SetValue("DisplayVersion", "0.2.3"); key.SetValue("Publisher", "OpenDownload contributors"); key.SetValue("InstallLocation", target);
+                    key.SetValue("DisplayName", "OpenDownload"); key.SetValue("DisplayVersion", "0.3.0"); key.SetValue("Publisher", "OpenDownload contributors"); key.SetValue("InstallLocation", target);
                     key.SetValue("UninstallString", $"\"{cachedSetup}\" --uninstall \"{target}\""); key.SetValue("DisplayIcon", Path.Combine(target, "OpenDownload.Desktop.exe")); key.SetValue("NoModify", 1); key.SetValue("NoRepair", 1);
                 }
                 CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "OpenDownload", "OpenDownload.lnk"), target);

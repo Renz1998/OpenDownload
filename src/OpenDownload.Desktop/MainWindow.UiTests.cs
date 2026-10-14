@@ -31,6 +31,11 @@ public partial class MainWindow
             Capture("workbench.png");
             settings.Layout = "Focus"; ApplyLayout(); SelectOne(rows[0]); await Dispatcher.InvokeAsync(UpdateLayout, DispatcherPriority.ApplicationIdle);
             Check(FocusDownloads.Visibility == Visibility.Visible && LibrarySidebar.Visibility == Visibility.Collapsed && Grid.GetColumn(DetailsPanel) == 1, "Focus uses transfer cards and side details");
+            Check(GlobalSettingsButton.IsVisible,"Focus exposes Settings in the shared header");
+            rows[0].Job.Status=DownloadStatus.Downloading; UpdateTaskbarProgress();
+            Check(TaskbarItemInfo.ProgressState==System.Windows.Shell.TaskbarItemProgressState.Normal && Math.Abs(TaskbarItemInfo.ProgressValue-0.65)<0.001,"Taskbar progress follows received bytes");
+            rows[0].Job.Status=DownloadStatus.Connecting; UpdateTaskbarProgress();
+            Check(TaskbarItemInfo.ProgressState==System.Windows.Shell.TaskbarItemProgressState.Indeterminate,"Taskbar animates while connecting"); rows[0].Job.Status=DownloadStatus.Paused; UpdateTaskbarProgress();
             Capture("focus.png");
             var welcome = new LayoutChooser { Owner = this };
             _ = Dispatcher.BeginInvoke(new Action(() => FindButtons((DependencyObject)welcome.Content).Single(b => b.Content?.ToString() == "Use Focus").RaiseEvent(new RoutedEventArgs(Button.ClickEvent))), DispatcherPriority.ApplicationIdle);
@@ -48,6 +53,24 @@ public partial class MainWindow
             var timed = new DownloadRow(new DownloadJob { StartedAt=DateTimeOffset.Now.AddMinutes(-2),FinishedAt=DateTimeOffset.Now,ActiveSeconds=90,Status=DownloadStatus.Completed });
             Check(timed.Timing.Contains("Started:") && timed.Timing.Contains("Finished:") && timed.Remaining.Contains("1m 30s"),"Completed downloads display timestamps and duration");
             settings.Layout = "Focus"; Save(); Check(store.LoadSettings().Layout == "Focus", "Layout selection persists");
+            var promptRow=AddJob(new BrowserRequest { Url="https://example.invalid/example.PNG",FileName="example.PNG" },App.DataDirectory,true); promptRow.Job.AwaitingDestination=true;
+            _=Dispatcher.BeginInvoke(new Action(()=>
+            {
+                var dialog=Application.Current.Windows.OfType<DestinationDialog>().Single();
+                var panel=(StackPanel)((ScrollViewer)dialog.Content).Content;
+                panel.Children.OfType<TextBox>().Single().Text=Path.Combine(App.DataDirectory,"images");
+                panel.Children.OfType<CheckBox>().Single().IsChecked=true;
+                FindButtons(dialog).Single(b=>b.Content?.ToString()=="Start download").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            }),DispatcherPriority.ApplicationIdle);
+            destinationPrompts.Enqueue(promptRow); ProcessDestinationPrompts();
+            Check(!promptRow.Job.AwaitingDestination && promptRow.Job.Status==DownloadStatus.Queued && settings.TypeFolders.ContainsKey(".png") && !settings.TypeFolders.ContainsKey(".jpg"),"Destination modal remembers only its selected file extension");
+            Check(store.LoadSettings().TypeFolders[".png"]==Path.Combine(App.DataDirectory,"images"),"File-type destination persists");
+            allJobs.Remove(promptRow.Job); rows.Remove(promptRow); store.Remove(promptRow.Job.Id);
+            var cancelled=AddJob(new BrowserRequest { Url="https://example.invalid/example.zip" },App.DataDirectory,true); cancelled.Job.AwaitingDestination=true;
+            _=Dispatcher.BeginInvoke(new Action(()=>Application.Current.Windows.OfType<DestinationDialog>().Single().Close()),DispatcherPriority.ApplicationIdle);
+            destinationPrompts.Enqueue(cancelled); ProcessDestinationPrompts();
+            Check(cancelled.Job.AwaitingDestination && cancelled.Job.Status==DownloadStatus.Paused,"Cancelling the destination prompt keeps a recoverable paused request");
+            allJobs.Remove(cancelled.Job); rows.Remove(cancelled); store.Remove(cancelled.Job.Id);
             SearchBox.Text = "not-present"; UpdateEmptyState(); Check(EmptyState.Visibility == Visibility.Visible, "Search empty state is visible"); SearchBox.Text = "";
             Theme.Apply(true); await Dispatcher.InvokeAsync(UpdateLayout, DispatcherPriority.ApplicationIdle); Check(((System.Windows.Media.SolidColorBrush)FindResource("Ink")).Color.R < 50, "Light theme applies readable dark text"); Theme.Apply(false);
             using (var chooser = new WindowCapture(new LayoutChooser())) { await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle); GuidePictures.Save(chooser.Window.Content as System.Windows.Media.Visual ?? chooser.Window, (int)chooser.Window.ActualWidth, (int)chooser.Window.ActualHeight, Path.Combine(output, "layout-choice.png")); }
