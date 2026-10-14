@@ -17,3 +17,13 @@ chrome.storage.local.get(['capture', 'captureHosts', 'lastError', 'captureNote']
   el('capture').checked = !!data.capture; el('hosts').value = data.captureHosts || ''; el('status').textContent = data.lastError || data.captureNote || (!data.capture ? 'Automatic capture is off. Turn it on above to use website Download buttons.' : '');
 });
 if (new URLSearchParams(location.search).get('setup') === '1') request({action: 'ping'});
+
+el('capture-test').addEventListener('click',async()=>{
+  el('capture-test').disabled=true;
+  try {
+    const result=await chrome.runtime.sendMessage({type:'capture-test'});
+    if(!result?.ok) throw new Error(result?.error || 'No reply from the extension.');
+    el('status').textContent='Test started. Look in OpenDownload for the capture test and its checksum result. If it stays queued, resume the queue.';
+  } catch(error) { el('status').textContent=error.message; }
+  finally { el('capture-test').disabled=false; }
+});

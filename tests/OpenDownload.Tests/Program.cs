@@ -80,7 +80,9 @@ try
     await Test("no validator uses one stream", async () => { using var engine = new DownloadEngine(); var job = Job("/novalidator"); await engine.RunAsync(job, timeout.Token); Check(!job.SupportsRanges, "Unsafe ranges"); await Verify(job); });
     await Test("pause, serialize, fresh-engine resume", async () =>
     {
-        var job = Job("/slow"); using var pause = new CancellationTokenSource(160);
+        foreach(int delay in new[] { 140,160,190,220 })
+        {
+        var job = Job("/slow"); using var pause = new CancellationTokenSource(delay);
         using (var engine = new DownloadEngine()) await engine.RunAsync(job, pause.Token);
         Check(job.Status == DownloadStatus.Paused && job.Downloaded > 0 && job.Downloaded < job.TotalBytes, "Pause did not retain partial progress");
         job = JsonSerializer.Deserialize<DownloadJob>(JsonSerializer.Serialize(job))!;
@@ -88,6 +90,7 @@ try
         using (var engine = new DownloadEngine()) await engine.RunAsync(job, timeout.Token);
         await Verify(job);
         Check(job.StartedAt == firstStart && job.FinishedAt.HasValue && job.ActiveSeconds > pausedSeconds, "Resume did not retain timing");
+        }
     });
     await Test("changed ETag refuses unsafe resume", async () =>
     {

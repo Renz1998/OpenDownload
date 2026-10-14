@@ -92,6 +92,7 @@ public partial class MainWindow
             case "Pause": PauseClick(sender, e); break;
             case "Folder": FolderClick(sender, e); break;
             case "Update link": ReplaceClick(sender, e); break;
+            case "Check folder": RecoveryClick(sender,e); break;
             case "Restart": RestartClick(sender, e); break;
             default: ResumeClick(sender, e); break;
         }
@@ -100,7 +101,7 @@ public partial class MainWindow
     {
         var menu = new ContextMenu();
         void Add(string title, RoutedEventHandler handler) { var item = new MenuItem { Header = title }; item.Click += handler; menu.Items.Add(item); }
-        Add("Open downloaded file",OpenFileClick); Add("Advanced details", DetailsClick); Add("Update download link", ReplaceClick); Add("Restart incomplete download…", RestartClick);
+        Add("Open downloaded file",OpenFileClick); Add("Fix failed download", RecoveryClick); Add("Advanced details", DetailsClick); Add("Update download link", ReplaceClick); Add("Restart incomplete download…", RestartClick);
         menu.Items.Add(new Separator()); Add("Remove from list — keep files", RemoveClick); Add("Remove and delete files...", DeleteClick); Add("Clear completed entries", ClearClick);
         Add("Restore removed entries", (_, _) =>
         {

@@ -1,0 +1,2 @@
+OpenDownload browser capture test.
+If this file arrived, the browser handed the download to OpenDownload.

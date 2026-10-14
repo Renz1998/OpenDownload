@@ -17,7 +17,7 @@ const chrome = {
   contextMenus: {removeAll: fn => fn(), create: () => {}, onClicked: on('context')},
   storage: {local: {get: async () => settings, set: async data => Object.assign(settings, data), remove: async key => {for(const entry of Array.isArray(key) ? key : [key]) delete settings[entry];}}},
   action: {setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {}},
-  downloads: {onDeterminingFilename: on('determining'), pause: async id => events.push(['pause', id]), cancel: async id => events.push(['cancel', id]), resume: async id => events.push(['resume', id]), erase: async query => events.push(['erase', query.id])}
+  downloads: {download: async options => { assert.equal(options.url,'https://raw.githubusercontent.com/Renz1998/OpenDownload/main/docs/connection-test.txt'); await capture({id:12,url:options.url}); return 12; }, onDeterminingFilename: on('determining'), pause: async id => events.push(['pause', id]), cancel: async id => events.push(['cancel', id]), resume: async id => events.push(['resume', id]), erase: async query => events.push(['erase', query.id])}
 };
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../browser-extension/background.js'), 'utf8'), {chrome, URL, Set, Error});
 async function capture(item) { await new Promise(resolve => assert.equal(listeners.determining(item, resolve), true)); }
@@ -62,5 +62,12 @@ async function capture(item) { await new Promise(resolve => assert.equal(listene
   await listeners.alarm({name:'opendownload-status'});
   assert.equal(transfers.at(-1).action,'browser-status'); assert.equal(transfers.at(-1).captureEnabled,true); assert.equal(transfers.at(-1).handoffError,true);
   console.log('PASS browser heartbeat reports capture and failed-handoff state');
-  console.log('12 extension tests passed.');
+  settings.capture=false;
+  let result=await new Promise(resolve=>listeners.message({type:'capture-test'},{id:'test-extension'},resolve));
+  assert.equal(result.ok,false); assert.ok(result.error.includes('Turn on')); console.log('PASS capture test explains the disabled capture setting');
+  settings.capture=true; settings.captureHosts='www.pinterest.com';
+  result=await new Promise(resolve=>listeners.message({type:'capture-test'},{id:'test-extension'},resolve));
+  assert.equal(result.ok,true); assert.deepEqual(events.slice(-3),[['pause',12],['cancel',12],['erase',12]]);
+  console.log('PASS user-invoked diagnostic exercises automatic capture despite an unrelated website filter');
+  console.log('14 extension tests passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

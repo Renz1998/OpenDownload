@@ -1,4 +1,4 @@
-param([switch]$Publish, [string]$DotNet = 'dotnet')
+param([switch]$Publish, [string]$DotNet = 'dotnet', [string]$SigningThumbprint, [string]$SignTool)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Push-Location $root
@@ -52,12 +52,15 @@ try {
             }
         }
         $zip = Join-Path $root ("artifacts/OpenDownload-$version-win-x64.zip")
+        if ($SigningThumbprint) { ./scripts/Sign-Release.ps1 -Path (Join-Path $out OpenDownload.Desktop.exe),(Join-Path $out OpenDownload.NativeHost.exe) -Thumbprint $SigningThumbprint -SignTool $SignTool }
+        ./scripts/Package-Extension.ps1
         Compress-Archive -Path "$out/*" -DestinationPath $zip -Force
         & $DotNet publish src/OpenDownload.Setup -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/setup
         if ($LASTEXITCODE -ne 0) { throw 'Installer publish failed' }
         $setup = Join-Path $root ("artifacts/OpenDownload-$version-Setup.exe")
         Copy-Item artifacts/setup/OpenDownload.Setup.exe $setup -Force
-        @($zip, $setup) | ForEach-Object { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + (Split-Path $_ -Leaf) } | Set-Content (Join-Path $root 'artifacts/SHA256SUMS.txt')
+        if ($SigningThumbprint) { ./scripts/Sign-Release.ps1 -Path $setup -Thumbprint $SigningThumbprint -SignTool $SignTool }
+        @($zip, $setup, (Join-Path $root "artifacts/OpenDownload-Extension-$version.zip")) | ForEach-Object { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + (Split-Path $_ -Leaf) } | Set-Content (Join-Path $root 'artifacts/SHA256SUMS.txt')
         $version | Set-Content artifacts/version.txt
     }
 } finally { Pop-Location }

@@ -1,6 +1,8 @@
 const HOST = 'org.opendownload.app';
 const MAX_URL = 16384;
 const pending = new Set();
+const TEST_URL = 'https://raw.githubusercontent.com/Renz1998/OpenDownload/main/docs/connection-test.txt';
+let captureTestRunning = false;
 function validUrl(value) {
   try { const url = new URL(value); return value.length <= MAX_URL && ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password; }
   catch { return false; }
@@ -37,6 +39,19 @@ chrome.contextMenus.onClicked.addListener(async info => {
 });
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id) return false;
+  if (message.type === 'capture-test') {
+    (async () => {
+      const data=await chrome.storage.local.get(['capture']);
+      if(!data.capture) throw new Error('Turn on automatic capture above, then run the test again.');
+      if(captureTestRunning) throw new Error('A capture test is already running.');
+      await send({action:'ping'});
+      captureTestRunning=true;
+      try { await chrome.downloads.download({url:TEST_URL,filename:'OpenDownload-connection-test.txt'}); }
+      catch(error) { captureTestRunning=false; throw error; }
+      return {ok:true};
+    })().then(respond).catch(error=>respond({ok:false,error:error.message}));
+    return true;
+  }
   if (message.type === 'send') {
     send(message.request).then(value => respond({ok: true, ...value})).catch(error => respond({ok: false, error: error.message}));
     return true;
@@ -57,7 +72,7 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
       const hosts = captureHosts.split(/[\s,]+/).filter(Boolean).map(s => s.toLowerCase());
       // Sites often download from a separate CDN; match the initiating site as well.
       const sources = [url, item.url, item.referrer].filter(validUrl);
-      if (hosts.length && !sources.some(source => hosts.includes(new URL(source).hostname.toLowerCase()))) {
+      if (!(captureTestRunning && url===TEST_URL) && hosts.length && !sources.some(source => hosts.includes(new URL(source).hostname.toLowerCase()))) {
         await chrome.storage.local.set({captureNote: 'This download is outside your selected websites. Clear the website list to capture downloads from all sites.'});
         return;
       }
@@ -72,7 +87,7 @@ chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
     } catch (error) {
       if (!accepted && paused) { try { await chrome.downloads.resume(item.id); } catch { } }
       await chrome.storage.local.set({lastError: accepted ? 'OpenDownload accepted the file, but Chrome could not cancel its paused transfer. Cancel it in Chrome to avoid a duplicate.' : error.message});
-    } finally { if (claimed) pending.delete(item.id); suggest(); }
+    } finally { if ((item.finalUrl || item.url)===TEST_URL) captureTestRunning=false; if (claimed) pending.delete(item.id); suggest(); }
   })();
   return true;
 });

@@ -111,6 +111,7 @@ public sealed class OptionsDialog : Window
         DialogUi.Label(panel, "Global speed limit in KiB/s (0 = unlimited)"); var speed = DialogUi.Input(panel, current.SpeedLimitKiB.ToString());
         DialogUi.Label(panel, "Gaming mode shared cap in KiB/s"); var gaming = DialogUi.Input(panel, current.GamingLimitKiB.ToString());
         var progressPopup=DialogUi.Check(panel,"Show activity window for downloads without a remembered file-type folder",current.ShowProgressWindow);
+        var updateChecks=DialogUi.Check(panel,"Check GitHub for app updates once a day",current.CheckUpdates);
         var completionAlerts=DialogUi.Check(panel,"Show completion notifications with Open file and Open folder",current.CompletionNotifications);
         var editedRules=new Dictionary<string,string>(current.TypeFolders);
         var rulePanel=new StackPanel(); DialogUi.Label(panel,"Remembered file-type folders"); panel.Children.Add(rulePanel);
@@ -150,7 +151,7 @@ public sealed class OptionsDialog : Window
                 if(editedRules.Values.Any(value=>!Path.IsPathFullyQualified(value))) throw new ArgumentException("Use an absolute path for every remembered folder.");
                 Result = new Settings { DownloadDirectory = Path.GetFullPath(directory.Text), Connections = c, ConcurrentDownloads = n, SpeedLimitKiB = s, ScheduleEnabled = schedule.IsChecked == true,
                     ScheduleStartMinute = (int)begin.TotalMinutes, ScheduleEndMinute = (int)end.TotalMinutes, MinimizeToTray = tray.IsChecked == true,
-                    Layout = current.Layout, WorkbenchDetailsVisible=current.WorkbenchDetailsVisible, LayoutDefaultVersion=current.LayoutDefaultVersion,TypeFolders=editedRules.ToDictionary(pair=>pair.Key,pair=>Path.GetFullPath(pair.Value)),ShowProgressWindow=progressPopup.IsChecked==true,SortMode=current.SortMode,SpeedUnit=current.SpeedUnit,CompletionNotifications=completionAlerts.IsChecked==true, PreviousSpeedLimitKiB=current.PreviousSpeedLimitKiB, LightTheme = current.LightTheme, CompactRows = compact.IsChecked == true, GamingLimitKiB = g, BrowserCheckedAt = current.BrowserCheckedAt };
+                    CheckUpdates=updateChecks.IsChecked==true,LastUpdateCheck=current.LastUpdateCheck, Layout = current.Layout, WorkbenchDetailsVisible=current.WorkbenchDetailsVisible, LayoutDefaultVersion=current.LayoutDefaultVersion,TypeFolders=editedRules.ToDictionary(pair=>pair.Key,pair=>Path.GetFullPath(pair.Value)),ShowProgressWindow=progressPopup.IsChecked==true,SortMode=current.SortMode,SpeedUnit=current.SpeedUnit,CompletionNotifications=completionAlerts.IsChecked==true, PreviousSpeedLimitKiB=current.PreviousSpeedLimitKiB, LightTheme = current.LightTheme, CompactRows = compact.IsChecked == true, GamingLimitKiB = g, BrowserCheckedAt = current.BrowserCheckedAt };
                 DialogResult = true;
             }
             catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException) { MessageBox.Show(this, ex.Message, "Check options"); }

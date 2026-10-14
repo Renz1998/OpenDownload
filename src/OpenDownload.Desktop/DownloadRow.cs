@@ -24,7 +24,7 @@ public sealed class DownloadRow(DownloadJob job) : INotifyPropertyChanged
     public string Status => Job.Status == DownloadStatus.Failed ? "Needs attention" : Job.Status == DownloadStatus.Downloading && Job.TotalBytes > 0 && Job.Downloaded == Job.TotalBytes ? "Checking file" : Job.Status.ToString();
     public string Source => Uri.TryCreate(Job.Url, UriKind.Absolute, out var uri) ? uri.Host : "";
     public string Subtitle => Size + " · " + Source;
-    public string ActionLabel => Job.Status is DownloadStatus.Connecting or DownloadStatus.Downloading ? "Pause" : Job.Status == DownloadStatus.Completed ? "Folder" : Job.Status == DownloadStatus.Failed ? Job.Error?.Contains("Restart", StringComparison.OrdinalIgnoreCase) == true ? "Restart" : Job.Error?.Contains("HTTP 403") == true || Job.Error?.Contains("HTTP 401") == true ? "Update link" : "Retry" : "Resume";
+    public string ActionLabel => Job.Status is DownloadStatus.Connecting or DownloadStatus.Downloading ? "Pause" : Job.Status == DownloadStatus.Completed ? "Folder" : Job.Status==DownloadStatus.Failed ? DownloadRecovery.Explain(Job).Action : "Resume";
     public string TransferSummary => Percentage + " · " + (Job.BytesPerSecond > 0 ? Speed + " · " : "") + Remaining;
     public string Size => Job.TotalBytes.HasValue ? FormatBytes(Job.TotalBytes.Value) : "Unknown";
     public string Received => FormatBytes(Job.Downloaded);

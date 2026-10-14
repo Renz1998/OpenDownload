@@ -47,7 +47,7 @@ public partial class MainWindow
         finally { promptingDestination=false; }
         Tick();
     }
-    private bool ShouldShowTransferWindow(DownloadRow row) => settings.ShowProgressWindow &&
+    private bool ShouldShowTransferWindow(DownloadRow row) => row.Job.Url!=ConnectionTest.Url && settings.ShowProgressWindow &&
         !settings.TypeFolders.ContainsKey(DownloadFolders.TypeKey(row.FileName));
     private void ShowTransferWindow(DownloadRow row)
     {

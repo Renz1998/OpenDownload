@@ -15,6 +15,11 @@ public partial class MainWindow
         {
             if (Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE") != "1" || !App.DataDirectory.Contains("test-results", StringComparison.OrdinalIgnoreCase) || allJobs.Count != 0) throw new InvalidOperationException("UI tests require a fresh isolated test profile.");
             timer.Stop(); queuePaused = true; Directory.CreateDirectory(output); File.WriteAllText(Path.Combine(output, "ui-results.txt"), "");
+            Check(DownloadRecovery.Explain(new DownloadJob { Error="HTTP 404" }).Action=="Update link" && DownloadRecovery.Explain(new DownloadJob { Error="HTTP 403" }).Help.Contains("login"),"Expired and inaccessible files offer fresh-link recovery");
+            Check(DownloadRecovery.Explain(new DownloadJob { Error="Not enough free space" }).Action=="Check folder" && DownloadRecovery.Explain(new DownloadJob { Error="source changed. Restart" }).Action=="Restart","Disk and source problems receive distinct recovery actions");
+            string releases="""[{"draft":false,"tag_name":"v0.9.0","assets":[{"name":"OpenDownload-0.9.0-Setup.exe","browser_download_url":"https://github.com/Renz1998/OpenDownload/releases/download/v0.9.0/OpenDownload-0.9.0-Setup.exe"}]}]""";
+            Check(UpdateService.FindVersion(releases,new Version(0,4,4))=="0.9.0" && UpdateService.FindVersion(releases,new Version(1,0,0))==null,"Update checks compare versions and require an official installer");
+            Check(UpdateService.FindVersion(releases.Replace("https://github.com/","https://example.invalid/"),new Version(0,4,4))==null,"Update checks reject assets pointing outside the official repository");
             var bindingErrors = new BindingErrorListener(); System.Diagnostics.PresentationTraceSources.DataBindingSource.Listeners.Add(bindingErrors);
             foreach (var (name, state, size, received) in new[] { ("flux-model.safetensors", DownloadStatus.Paused, 9_600_000_000L, 6_240_000_000L), ("game-update.7z", DownloadStatus.Paused, 38_200_000_000L, 10_314_000_000L), ("training-data.zip", DownloadStatus.Paused, 5_300_000_000L, 2_226_000_000L), ("adapter-model.gguf", DownloadStatus.Failed, 2_100_000_000L, 378_000_000L), ("reference-video.mp4", DownloadStatus.Completed, 410_000_000L, 410_000_000L) })
             {

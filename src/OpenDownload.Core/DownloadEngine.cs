@@ -227,7 +227,8 @@ public sealed class DownloadEngine : IDisposable
                 break;
             }
             await Limiter.WaitAsync(count, ct);
-            await output.WriteAsync(buffer.AsMemory(0, count), ct);
+            // Finish each disk write before publishing its offset; cancellation may interrupt a Windows file write after advancing its position.
+            await output.WriteAsync(buffer.AsMemory(0, count), CancellationToken.None);
             // Publish offsets only after a durable flush, batching small writes to reduce disk stalls.
             pendingCommit += count;
             remaining -= count;

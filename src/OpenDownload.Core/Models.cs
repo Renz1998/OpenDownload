@@ -64,6 +64,8 @@ public sealed class Settings
     public string SortMode { get; set; } = "Latest downloaded";
     public string SpeedUnit { get; set; } = "MB/s";
     public bool CompletionNotifications { get; set; } = true;
+    public bool CheckUpdates { get; set; } = true;
+    public DateTimeOffset? LastUpdateCheck { get; set; }
     public bool LightTheme { get; set; }
     public bool WorkbenchDetailsVisible { get; set; } = true;
     public bool CompactRows { get; set; }

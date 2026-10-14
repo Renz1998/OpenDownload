@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
-    <Version>0.4.3</Version>
+    <Version>0.4.4</Version>
     <Company>OpenDownload contributors</Company>
     <Product>OpenDownload</Product>
     <Deterministic>true</Deterministic>

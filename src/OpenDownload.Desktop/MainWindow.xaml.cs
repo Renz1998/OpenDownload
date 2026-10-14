@@ -53,6 +53,7 @@ public partial class MainWindow : Window
         ContentRendered += (_, _) =>
         {
             if (Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE") == "1") return;
+            _=CheckUpdatesAsync(false);
             if (settings.Layout is not ("Workbench" or "Focus")) ChooseLayout();
         };
     }
@@ -112,7 +113,7 @@ public partial class MainWindow : Window
         running.Remove(row.Job.Id); cts.Dispose();
         if (row.Job.Status == DownloadStatus.Paused && settings.ScheduleEnabled && !settings.AllowedNow(DateTime.Now) && !queuePaused && !quitting) row.Job.Status = DownloadStatus.Queued;
         if (row.Job.Status == DownloadStatus.Completed)
-        { NotifyCompleted(row); }
+        { if(row.Job.Url==ConnectionTest.Url) ShowNotice(row.Job.Sha256==ConnectionTest.Sha256 ? "Browser capture test passed: browser handoff, file download and checksum all succeeded." : "Test file arrived, but its checksum did not match. Try the test again."); else NotifyCompleted(row); }
         Save(); row.Refresh(); CollectionViewSource.GetDefaultView(rows).Refresh();
     }
     private IEnumerable<DownloadRow> Selected() => settings.Layout == "Focus" ? FocusDownloads.SelectedItems.Cast<DownloadRow>().ToArray() : Downloads.SelectedItems.Cast<DownloadRow>().ToArray();
@@ -141,8 +142,10 @@ public partial class MainWindow : Window
     {
         if(req.ExtensionId==AppPaths.ExtensionId) RecordBrowserStatus(req.CaptureEnabled,false);
         string name=string.IsNullOrWhiteSpace(req.FileName) ? DownloadNames.FromUrl(DownloadNames.ValidateUrl(req.Url)) : req.FileName;
-        bool prompt=Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE")!="1" && !settings.TypeFolders.ContainsKey(DownloadFolders.TypeKey(name));
-        var row=AddJob(req,DownloadFolders.ForType(settings,name),prompt);
+        bool diagnostic=req.Url==ConnectionTest.Url;
+        bool prompt=!diagnostic && Environment.GetEnvironmentVariable("OPENDOWNLOAD_TEST_MODE")!="1" && !settings.TypeFolders.ContainsKey(DownloadFolders.TypeKey(name));
+        var row=AddJob(req,diagnostic ? Path.Combine(App.DataDirectory,"connection-tests") : DownloadFolders.ForType(settings,name),prompt);
+        if(diagnostic) { Directory.CreateDirectory(Path.GetDirectoryName(row.Job.Destination)!); ShowNotice("Browser capture test received. The result appears here when the tiny test file finishes. Resume the queue if it is paused."); }
         row.Job.AwaitingDestination=prompt;
         if (!Save()) { allJobs.Remove(rows[^1].Job); rows.RemoveAt(rows.Count - 1); throw new IOException("Cannot persist download request."); }
         ShowWindow(); Tick();
@@ -220,7 +223,7 @@ public partial class MainWindow : Window
         if (CurrentRow is DownloadRow row)
         {
             UpdatePreview(row);
-            SelectionTitle.Text = row.FileName + " · " + row.Status; SelectionDetail.Text = row.Detail;
+            SelectionTitle.Text = row.FileName + " · " + row.Status; SelectionDetail.Text = row.Job.Status==DownloadStatus.Failed ? DownloadRecovery.Explain(row.Job).Help+"\n\n"+row.Detail : row.Detail;
             SelectionTiming.Text = row.Timing;
             SelectionProgress.Text = row.Received + " of " + row.Size + " · " + row.Remaining;
             SelectionResume.Text = row.Job.TotalBytes == null ? "Resume support is checked when the transfer starts." : row.Job.SupportsRanges ? $"Resume supported · {row.Job.Segments.Count} connection(s)" : "This server does not support validated resume. An interrupted transfer may need Restart.";
