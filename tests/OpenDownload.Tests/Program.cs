@@ -14,7 +14,13 @@ if (args.Length >= 2 && args[0] == "--crash-child")
         await Task.Delay(20);
         byte[] state = JsonSerializer.SerializeToUtf8Bytes(childJob);
         using (var output = new FileStream(statePath + ".new", FileMode.Create, FileAccess.Write)) { output.Write(state); output.Flush(true); }
-        File.Move(statePath + ".new", statePath, true);
+        // Hosted Windows runners may briefly scan/lock a new checkpoint file.
+        // Retry this fixture's atomic rename; never publish a partially-written snapshot.
+        for (int attempt=0;;attempt++)
+        {
+            try { File.Move(statePath + ".new", statePath, true); break; }
+            catch (Exception ex) when(attempt<20 && ex is IOException or UnauthorizedAccessException) { await Task.Delay(20); }
+        }
     }
     await transfer; return;
 }
