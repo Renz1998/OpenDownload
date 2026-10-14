@@ -1,12 +1,20 @@
 # OpenDownload
 
+[![Download Windows installer](https://img.shields.io/badge/Download_Windows_installer-.exe-58C9A8?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Renz1998/OpenDownload/releases/download/v0.4.0/OpenDownload-0.4.0-Setup.exe)
+
+**[Download OpenDownload 0.4.0 for Windows (.exe)](https://github.com/Renz1998/OpenDownload/releases/download/v0.4.0/OpenDownload-0.4.0-Setup.exe)**
+
+Windows 11, 64-bit. Download and run the installer; the .NET runtime is included.
+
+[Portable ZIP](https://github.com/Renz1998/OpenDownload/releases/download/v0.4.0/OpenDownload-0.4.0-win-x64.zip) | [Release notes and checksums](https://github.com/Renz1998/OpenDownload/releases/tag/v0.4.0) | [Browser extension setup guide](docs/browser-setup.html)
+
 A free, open-source download manager for Windows 11. A familiar toolbar, category sidebar and download table, with an independent transfer engine and Chrome/Edge extension. No trial, account, ads or subscription.
 
-**Version 0.2.0 is a preview release, not full IDM parity.** OpenDownload has its own branding, source code and browser helper. It does not replace IDM's helper, reset its trial, or redistribute its extension.
+**Version 0.4.0 is a preview release, not full IDM parity.** OpenDownload has its own branding, source code and browser helper. It does not replace IDM's helper, reset its trial, or redistribute its extension.
 
 ## Features
 
-- First-launch Workbench/Focus chooser, remembered layout and a permanent switch.
+- Focus mode by default, a first-launch Workbench/Focus chooser, remembered layout and a permanent switch.
 - Graphite/teal interface, light/dark themes, contextual row actions and compact Workbench density.
 - Gaming mode applies a configurable shared bandwidth cap and restores the prior setting.
 - Illustrated browser setup with Chrome/Edge buttons, folder copy/open actions and actual connection-check timestamps. See [the full guide](docs/browser-setup.html).
@@ -23,9 +31,9 @@ A free, open-source download manager for Windows 11. A familiar toolbar, categor
 
 ## Run
 
-Run `OpenDownload-0.2.0-Setup.exe` for per-user installation, shortcuts and automatic browser-helper registration. Close OpenDownload using Exit before upgrading. The installer preserves preferences, downloads, unrelated files and the previous program folder as a recovery backup. Uninstall through Windows Settings → Apps; downloaded files, settings/history and the cached installer are kept. Alternatively extract the portable ZIP and launch `OpenDownload.Desktop.exe`. The .NET runtime is included.
+Run `OpenDownload-0.4.0-Setup.exe` for per-user installation, shortcuts and automatic browser-helper registration. Close OpenDownload using Exit before upgrading. The installer preserves preferences, downloads, unrelated files and the previous program folder as a recovery backup. Uninstall through Windows Settings → Apps; downloaded files, settings/history and the cached installer are kept. Alternatively extract the portable ZIP and launch `OpenDownload.Desktop.exe`. The .NET runtime is included.
 
-Default files go to `Downloads\OpenDownload`. Change the location, speed limit, connection count and schedule in **Options / Scheduler**. Your settings and encrypted history live at `%LOCALAPPDATA%\OpenDownload`. Set `OPENDOWNLOAD_DATA` before launch to use another local data folder, or put its absolute path in `data-path.txt` beside the app. The environment variable takes priority. Keep that machine-specific file out of shared release packages.
+New installations save files to your Windows **Downloads** folder (`C:\Users\<user>\Downloads` on a typical setup). Existing custom download folders are preserved. Change the location, speed limit, connection count and schedule in **Settings**. Your settings and encrypted history live at `%LOCALAPPDATA%\OpenDownload`. Set `OPENDOWNLOAD_DATA` before launch to use another local data folder, or put its absolute path in `data-path.txt` beside the app. The environment variable takes priority. Keep that machine-specific file out of shared release packages.
 
 **Closing the window keeps the app in the tray by default.** Use the tray menu's **Exit** to stop it, or disable close-to-tray in Options. Downloads need Windows awake and the app running; there is no Windows service or automatic startup task.
 
