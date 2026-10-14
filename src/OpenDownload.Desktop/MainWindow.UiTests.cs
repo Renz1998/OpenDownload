@@ -26,8 +26,7 @@ public partial class MainWindow
             await Dispatcher.InvokeAsync(UpdateLayout, DispatcherPriority.ApplicationIdle);
             Check(Downloads.Visibility == Visibility.Visible && FocusDownloads.Visibility == Visibility.Collapsed, "Workbench uses the download table");
             Theme.ApplyTitleBar(this); Check(Theme.TitleBarMatches(this),"Windows accepts the themed title bar: " + Theme.LastTitleBarResult.ToString("X8"));
-            var browserStart = BrowserIntegration.BrowserStartInfo("chrome.exe","Chrome",false);
-            Check(!browserStart.UseShellExecute && browserStart.ArgumentList.Single()=="chrome://extensions/","Chrome extensions URL is passed directly to its executable");
+            Check(BrowserIntegration.BrowserPage("Chrome",false)=="chrome://extensions/" && BrowserIntegration.BrowserPage("Edge",false)=="edge://extensions/","Browser navigation uses the correct extensions page");
             Check(((System.Windows.Media.SolidColorBrush)SelectionTitle.Foreground).Color == ((System.Windows.Media.SolidColorBrush)FindResource("Ink")).Color, "Dark theme details text matches readable foreground");
             Capture("workbench.png");
             settings.Layout = "Focus"; ApplyLayout(); SelectOne(rows[0]); await Dispatcher.InvokeAsync(UpdateLayout, DispatcherPriority.ApplicationIdle);

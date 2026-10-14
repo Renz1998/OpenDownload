@@ -18,6 +18,7 @@ public sealed class BrowserSetupDialog : Window
         var browser = new ComboBox { ItemsSource = new[] { "Chrome", "Edge" }, SelectedIndex = 0, Margin = new Thickness(0, 16, 0, 10), Width = 160, HorizontalAlignment = HorizontalAlignment.Left }; panel.Children.Add(browser);
         var status = new TextBlock { Foreground = (Brush)FindResource("Accent"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 8) };
         void Action(Action action) { try { action(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Text.Json.JsonException or System.ComponentModel.Win32Exception) { status.Text = ex.Message; } }
+        async Task BrowserAction(bool check) { try { BrowserIntegration.Register(); await BrowserIntegration.OpenBrowser(browser.SelectedItem!.ToString()!, check); status.Text = check ? "Waiting for a new connection check..." : "Helper ready. In your browser, enable Developer mode and choose Load unpacked."; } catch (Exception ex) { status.Text = ex.Message; } }
         var picture = new Image { Height = 230, Stretch = Stretch.Uniform, Margin = new Thickness(0, 12, 0, 12) };
         void UpdatePicture()
         {
@@ -27,7 +28,7 @@ public sealed class BrowserSetupDialog : Window
         browser.SelectionChanged += (_, _) => UpdatePicture(); UpdatePicture();
         Heading("1", "Open your browser’s extension page");
         var open = new Button { Content = "Prepare helper and open extensions", Style = (Style)FindResource("PrimaryButton"), HorizontalAlignment = HorizontalAlignment.Left };
-        open.Click += (_, _) => Action(() => { BrowserIntegration.Register(); BrowserIntegration.OpenBrowser(browser.SelectedItem.ToString()!); status.Text = "Helper ready. In your browser, enable Developer mode and choose Load unpacked."; }); panel.Children.Add(open);
+        open.Click += async (_, _) => await BrowserAction(false); panel.Children.Add(open);
         panel.Children.Add(picture);
         DialogUi.Label(panel, "Illustration: Chrome places Developer mode at the top right; Edge normally places it in the left sidebar. Controls may move between browser versions.");
         Heading("2", "Load the included extension folder");
@@ -39,9 +40,10 @@ public sealed class BrowserSetupDialog : Window
         Heading("3", "Check the connection");
         DialogUi.Label(panel, "After OpenDownload Integration appears in your browser, open its popup and click Check connection. The button below opens that page and runs the check for you.");
         var check = new Button { Content = "Open extension and check connection", HorizontalAlignment = HorizontalAlignment.Left };
-        check.Click += (_, _) => Action(() => { BrowserIntegration.Register(); BrowserIntegration.OpenBrowser(browser.SelectedItem.ToString()!, true); status.Text = "Waiting for the browser extension’s response…"; }); panel.Children.Add(check); panel.Children.Add(status);
+        check.Click += async (_, _) => await BrowserAction(true); panel.Children.Add(check); panel.Children.Add(status);
+        var initialCheck = checkedAt();
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        timer.Tick += (_, _) => { var seen = checkedAt(); if (seen.HasValue) status.Text = "Browser connection succeeded at " + seen.Value.LocalDateTime.ToString("t") + ". Right-click a link → Download with OpenDownload."; }; timer.Start(); Closed += (_, _) => timer.Stop();
+        timer.Tick += (_, _) => { var seen = checkedAt(); if (seen.HasValue && seen != initialCheck) status.Text = "Browser connection succeeded at " + seen.Value.LocalDateTime.ToString("t") + ". Right-click a link → Download with OpenDownload."; }; timer.Start(); Closed += (_, _) => timer.Stop();
         var guide = new Button { Content = "Open the full illustrated guide and troubleshooting", HorizontalAlignment = HorizontalAlignment.Left };
         guide.Click += (_, _) => Action(() => Process.Start(new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "docs", "browser-setup.html")) { UseShellExecute = true })); panel.Children.Add(guide);
         var advanced = new Expander { Header = "Advanced: a different extension ID", Margin = new Thickness(0, 15, 0, 0) }; var inner = new StackPanel(); advanced.Content = inner; panel.Children.Add(advanced);

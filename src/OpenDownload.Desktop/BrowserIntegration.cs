@@ -26,7 +26,7 @@ public static class BrowserIntegration
         foreach (string browser in new[] { "Google\\Chrome", "Microsoft\\Edge", "Chromium" })
         { using var key = Registry.CurrentUser.CreateSubKey($"Software\\{browser}\\NativeMessagingHosts\\org.opendownload.app"); key.SetValue("", manifest); }
     }
-    public static void OpenBrowser(string browser, bool check = false)
+    public static async Task OpenBrowser(string browser, bool check = false)
     {
         string exe = browser == "Edge" ? "msedge.exe" : "chrome.exe";
         string? path = null;
@@ -49,13 +49,10 @@ public static class BrowserIntegration
             path = candidates.FirstOrDefault(File.Exists);
         }
         if (path == null) throw new IOException($"{browser} was not found. Open it manually and visit " + (browser == "Edge" ? "edge://extensions" : "chrome://extensions") + ".");
-        Process.Start(BrowserStartInfo(path, browser, check));
+        await BrowserNavigation.OpenPageAsync(path, BrowserPage(browser,check));
     }
-    internal static ProcessStartInfo BrowserStartInfo(string executable, string browser, bool check)
+    internal static string BrowserPage(string browser,bool check)
     {
-        // Execute Chrome directly so its URL is passed intact; an existing browser opens it in a new tab.
-        var info = new ProcessStartInfo(executable) { UseShellExecute = false };
-        info.ArgumentList.Add(check ? $"chrome-extension://{AppPaths.ExtensionId}/popup.html?setup=1" : browser == "Edge" ? "edge://extensions/" : "chrome://extensions/");
-        return info;
+        return check ? $"chrome-extension://{AppPaths.ExtensionId}/popup.html?setup=1" : browser == "Edge" ? "edge://extensions/" : "chrome://extensions/";
     }
 }
